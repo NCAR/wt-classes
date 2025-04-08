@@ -40,6 +40,8 @@ locales-test/locales-test
 
 CMakeFiles
 CMakeCache.txt
+CMakeDoxygenDefaults.cmake
+CMakeDoxyfile.in
 Makefile
 CTestTestfile.cmake
 cmake_install.cmake
