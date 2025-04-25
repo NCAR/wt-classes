@@ -24,7 +24,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+// #include <boost/make_shared.hpp>
 #include <boost/foreach.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/lexical_cast.hpp>
@@ -35,33 +35,33 @@
 #if !USE_WIOSERVICE
 #include <boost/system/error_code.hpp>
 #include <boost/thread.hpp>
-#include <boost/asio.hpp>
+// #include <boost/asio.hpp>
 #endif
 
 #ifdef WC_USE_WT_MD5
-#include <Wt/Utils>
+#include <Wt/Utils.h>
 #endif
 #ifdef WC_USE_OPENSSL
 #include <openssl/md5.h>
 #endif
 #ifdef WC_HAVE_WIOSERVICE
-#include <Wt/WIOService>
+#include <Wt/WIOService.h>
 #endif
 
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
-#include <Wt/WServer>
-#include <Wt/WLineEdit>
-#include <Wt/WTextArea>
-#include <Wt/WTextEdit>
-#include <Wt/WPushButton>
-#include <Wt/WComboBox>
-#include <Wt/WAbstractToggleButton>
-#include <Wt/WSlider>
-#include <Wt/WDialog>
-#include <Wt/WTableView>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
+#include <Wt/WServer.h>
+#include <Wt/WLineEdit.h>
+#include <Wt/WTextArea.h>
+#include <Wt/WTextEdit.h>
+#include <Wt/WPushButton.h>
+#include <Wt/WComboBox.h>
+#include <Wt/WAbstractToggleButton.h>
+#include <Wt/WSlider.h>
+#include <Wt/WDialog.h>
+#include <Wt/WTableView.h>
 #ifndef WC_HAVE_STRING_LOCALE
-#include <Wt/WLocale>
+#include <Wt/WLocale.h>
 #endif
 
 #include "util.hpp"
@@ -105,9 +105,9 @@ boost::mutex do_func_mutex;
 static void do_func(boost::function<void()> func, WApplication* app,
                     BoolPtr b) {
     boost::mutex::scoped_lock do_func_lock(do_func_mutex);
-    if (!*b && !app->isQuited()) {
-        WApplication::UpdateLock app_lock = app->getUpdateLock();
-        if (!*b && !app->isQuited()) {
+    if (!*b && !app->hasQuit()) {
+        WApplication::UpdateLock app_lock(app);
+        if (!*b && !app->hasQuit()) {
             func();
         }
     }
@@ -119,21 +119,21 @@ static void thread_func(boost::function<void()> func, WApplication* app,
 }
 #endif
 
-boost::function<void()> bound_post(boost::function<void()> func) {
-    if (wApp) {
-#if USE_SERVER_POST
-        WServer* server = DOWNCAST<WServer*>(wApp->environment().server());
-        return boost::bind(post, server, wApp->sessionId(), func);
-#else
-        BoolPtr ptr = boost::make_shared<bool>();
-        *ptr = false;
-        wApp->addChild(new AG(ptr));
-        return boost::bind(thread_func, func, wApp, ptr);
-#endif
-    } else {
-        return boost::bind(schedule_action, td::TD_NULL, func);
-    }
-}
+// boost::function<void()> bound_post(boost::function<void()> func) {
+//     if (wApp) {
+// #if USE_SERVER_POST
+//         WServer* server = DOWNCAST<WServer*>(wApp->environment().server());
+//         return boost::bind(post, server, wApp->sessionId(), func);
+// #else
+//         BoolPtr ptr = boost::make_shared<bool>();
+//         *ptr = false;
+//         wApp->addChild(new AG(ptr));
+//         return boost::bind(thread_func, func, wApp, ptr);
+// #endif
+//     } else {
+//         return boost::bind(schedule_action, td::TD_NULL, func);
+//     }
+// }
 
 typedef std::vector<boost::any> Anys;
 
@@ -197,7 +197,7 @@ OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge) {
 }
 
 void updates_trigger() {
-    if (wApp && wApp->updatesEnabled() && !wApp->isQuited()) {
+    if (wApp && wApp->updatesEnabled() && !wApp->hasQuit()) {
         wApp->triggerUpdate();
     }
 }
@@ -341,52 +341,52 @@ std::string bool_to_string(bool value) {
 #define USE_WIOSERVICE (defined(WC_HAVE_WIOSERVICE) && \
         defined(WC_HAVE_ENVIRONMENT_SERVER))
 
-#if !USE_WIOSERVICE
-typedef boost::asio::deadline_timer Timer;
-typedef boost::shared_ptr<Timer> TimerPtr;
+// #if !USE_WIOSERVICE
+// typedef boost::asio::deadline_timer Timer;
+// typedef boost::shared_ptr<Timer> TimerPtr;
 
-struct WcIoService {
-    WcIoService():
-        work(new boost::asio::io_service::work(io)) {
-        for (int i = 0; i < boost::thread::hardware_concurrency(); i++) {
-            gr.create_thread(boost::bind(&boost::asio::io_service::run, &io));
-        }
-    }
+// struct WcIoService {
+//     WcIoService():
+//         work(new boost::asio::io_service::work(io)) {
+//         for (int i = 0; i < boost::thread::hardware_concurrency(); i++) {
+//             gr.create_thread(boost::bind(&boost::asio::io_service::run, &io));
+//         }
+//     }
 
-    ~WcIoService() {
-        delete work;
-        io.stop();
-    }
+//     ~WcIoService() {
+//         delete work;
+//         io.stop();
+//     }
 
-    boost::asio::io_service io;
-    boost::asio::io_service::work* work;
-    boost::thread_group gr;
-} wc_io;
+//     boost::asio::io_service io;
+//     boost::asio::io_service::work* work;
+//     boost::thread_group gr;
+// } wc_io;
 
-static void handle_timeout(TimerPtr /* timer */,
-                           const boost::function<void()>& func,
-                           const boost::system::error_code& e) {
-    if (!e) {
-        func();
-    }
-}
-#endif
+// static void handle_timeout(TimerPtr /* timer */,
+//                            const boost::function<void()>& func,
+//                            const boost::system::error_code& e) {
+//     if (!e) {
+//         func();
+//     }
+// }
+// #endif
 
-void schedule_action(const td::TimeDuration& wait,
-                     const boost::function<void()>& func) {
-#if USE_WIOSERVICE
-    int ms = wait.total_milliseconds();
-    if (ms < 0) {
-        ms = INT_MAX;
-    }
-    WIOService& io = WServer::instance()->ioService();
-    io.schedule(ms, func);
-#else
-    TimerPtr timer = boost::make_shared<Timer>(wc_io.io, wait);
-    timer->async_wait(boost::bind(handle_timeout, timer, func,
-                                  boost::asio::placeholders::error));
-#endif
-}
+// void schedule_action(const td::TimeDuration& wait,
+//                      const boost::function<void()>& func) {
+// #if USE_WIOSERVICE
+//     int ms = wait.total_milliseconds();
+//     if (ms < 0) {
+//         ms = INT_MAX;
+//     }
+//     WIOService& io = WServer::instance()->ioService();
+//     io.schedule(ms, func);
+// #else
+//     TimerPtr timer = boost::make_shared<Timer>(wc_io.io, wait);
+//     timer->async_wait(boost::bind(handle_timeout, timer, func,
+//                                   boost::asio::placeholders::error));
+// #endif
+// }
 
 std::string approot() {
 #ifdef WC_HAVE_WAPPLICATION_APPROOT
@@ -424,45 +424,45 @@ void set_closable(WDialog* dialog) {
 #ifdef WC_HAVE_WDIALOG_SET_CLOSABLE
     dialog->setClosable(true);
 #else
-    WPushButton* close = new WPushButton("X");
-    close->clicked().connect(dialog, &WDialog::reject);
+    WPushButton* close;
 #ifdef WC_HAVE_WDIALOG_TITLEBAR
-    dialog->titleBar()->insertWidget(0, close);
+    close = dialog->titleBar()->insertWidget(std::make_unique<WPushButton>("X"), 0, close);
 #else
-    dialog->contents()->addWidget(close);
+    close = dialog->contents()->addWidget(std::make_unique<WPushButton>("X"));
 #endif
 #endif
+close->clicked().connect(dialog, &WDialog::reject);
 }
 
-class DeleteSender : public WObject {
-public:
-    void delete_sender() {
-        delete sender();
-    }
-} delete_sender;
+// class DeleteSender : public WObject {
+// public:
+//     void delete_sender() {
+//         delete sender();
+//     }
+// } delete_sender;
 
-void delete_closed(WDialog* dialog) {
-    dialog->finished().connect(&delete_sender, &DeleteSender::delete_sender);
-}
+// void delete_closed(WDialog* dialog) {
+//     dialog->finished().connect(&delete_sender, &DeleteSender::delete_sender);
+// }
 
-void fix_text_edit(WTextEdit* text_edit) {
-    if (wApp && !wApp->environment().ajax()) {
-        return;
-    }
-    WWidget* parent_widget = text_edit->parent();
-    if (isinstance<WContainerWidget>(parent_widget)) {
-        WContainerWidget* parent = DOWNCAST<WContainerWidget*>(parent_widget);
-        WContainerWidget* wrapper = new WContainerWidget;
-        parent->insertBefore(wrapper, text_edit);
-        parent->removeWidget(text_edit);
-        wrapper->addWidget(text_edit);
-        if (text_edit->width() == WLength::Auto ||
-                text_edit->height() == WLength::Auto) {
-            text_edit->resize(525, 130);
-        }
-        wrapper->resize(text_edit->width(), text_edit->height().toPixels() + 5);
-    }
-}
+// void fix_text_edit(WTextEdit* text_edit) {
+//     if (wApp && !wApp->environment().ajax()) {
+//         return;
+//     }
+//     WWidget* parent_widget = text_edit->parent();
+//     if (isinstance<WContainerWidget>(parent_widget)) {
+//         WContainerWidget* parent = DOWNCAST<WContainerWidget*>(parent_widget);
+//         WContainerWidget* wrapper = new WContainerWidget;
+//         parent->insertBefore(wrapper, text_edit);
+//         parent->removeWidget(text_edit);
+//         wrapper->addWidget(text_edit);
+//         if (text_edit->width() == WLength::Auto ||
+//                 text_edit->height() == WLength::Auto) {
+//             text_edit->resize(525, 130);
+//         }
+//         wrapper->resize(text_edit->width(), text_edit->height().toPixels() + 5);
+//     }
+// }
 
 std::string json_escape_utf8(const std::string& utf8) {
     const std::wstring& wstr = WString().fromUTF8(utf8).value();
@@ -591,19 +591,19 @@ bool stop_ioservice(WServer& server) {
     return 0;
 }
 
-int wrun_stop_ioservice(int argc, char** argv, ApplicationCreator creator) {
-    WServer server(argv[0], "");
-    server.setServerConfiguration(argc, argv);
-    server.addEntryPoint(Wt::Application, creator);
-    if (server.start()) {
-        Wt::WServer::waitForShutdown();
-        stop_ioservice(server);
-        server.stop();
-        return 0;
-    } else {
-        return 1;
-    }
-}
+// int wrun_stop_ioservice(int argc, char** argv, ApplicationCreator creator) {
+//     WServer server(argv[0], "");
+//     server.setServerConfiguration(argc, argv);
+//     server.addEntryPoint(Wt::Application, creator);
+//     if (server.start()) {
+//         Wt::WServer::waitForShutdown();
+//         stop_ioservice(server);
+//         server.stop();
+//         return 0;
+//     } else {
+//         return 1;
+//     }
+// }
 
 }
 

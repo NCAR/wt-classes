@@ -7,10 +7,10 @@
 #ifndef FILETREETABLE_H_
 #define FILETREETABLE_H_
 
-#include <Wt/WTreeTable>
-#include <Wt/WTree>
-#include <Wt/WTreeNode>
-#include <Wt/WTreeTableNode>
+#include <Wt/WTreeTable.h>
+#include <Wt/WTree.h>
+#include <Wt/WTreeNode.h>
+#include <Wt/WTreeTableNode.h>
 
 #include <boost/filesystem/path.hpp>
 namespace Wt {
@@ -43,10 +43,8 @@ public:
    * Create a new FileTreeTable to browse the given path.
    * \param path directory to display
    * \param suffix if non-empty, only display files with this suffix
-   * \param parent optional Parent widget
    */
-    FileTreeTable(const boost::filesystem::path& path, const std::string &suffix="",
-		Wt::WContainerWidget *parent=0);
+    FileTreeTable(const boost::filesystem::path& path, const std::string &suffix="");
 };
 }
 }

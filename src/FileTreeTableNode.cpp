@@ -12,9 +12,9 @@
 #include <iostream>
 #include <time.h>
 
-#include <Wt/WIconPair>
-#include <Wt/WStringUtil>
-#include <Wt/WText>
+#include <Wt/WIconPair.h>
+#include <Wt/WStringUtil.h>
+#include <Wt/WText.h>
 
 namespace Wt {
 namespace Wc {
@@ -32,12 +32,12 @@ FileTreeTableNode::FileTreeTableNode(const boost::filesystem::path& path,
 #endif
     path_(path) ,suffix_(suffix)
 {
-  label()->setTextFormat(PlainText);
+  label()->setTextFormat(TextFormat::Plain);
 
   if (boost::filesystem::exists(path)) {
     if (!boost::filesystem::is_directory(path)) {
       int fsize = (int)boost::filesystem::file_size(path);
-      setColumnWidget(1, new WText(boost::lexical_cast<std::string>(fsize)));
+      setColumnWidget(1, std::make_unique<WText>(boost::lexical_cast<std::string>(fsize)));
       columnWidget(1)->setStyleClass("fsize");
     } else
       setSelectable(false);
@@ -53,19 +53,19 @@ FileTreeTableNode::FileTreeTableNode(const boost::filesystem::path& path,
     char c[100];
     strftime(c, 100, "%b %d %Y", &ttm);
 
-    setColumnWidget(2, new WText(c));
+    setColumnWidget(2, std::make_unique<WText>(c));
     columnWidget(2)->setStyleClass("date");
   }
 }
 
-WIconPair *FileTreeTableNode::createIcon(const boost::filesystem::path& path)
+std::unique_ptr<WIconPair> FileTreeTableNode::createIcon(const boost::filesystem::path& path)
 {
   if (boost::filesystem::exists(path)
       && boost::filesystem::is_directory(path))
-    return new WIconPair("icons/yellow-folder-closed.png",
+    return std::make_unique<WIconPair>("icons/yellow-folder-closed.png",
 			 "icons/yellow-folder-open.png", false);
   else
-    return new WIconPair("icons/document.png",
+    return std::make_unique<WIconPair>("icons/document.png",
 			 "icons/yellow-folder-open.png", false);
 }
 
@@ -93,7 +93,7 @@ void FileTreeTableNode::populate()
     for (std::set<boost::filesystem::path>::iterator i = paths.begin();
       i != paths.end(); ++i)
       try {
-        addChildNode(new FileTreeTableNode(*i));
+        addChildNode(std::make_unique<FileTreeTableNode>(*i));
       } catch (boost::filesystem::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
       }

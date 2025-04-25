@@ -13,9 +13,9 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/any.hpp>
 
-#include <Wt/WGlobal>
-#include <Wt/WApplication> // for ApplicationCreator
-#include <Wt/WDateTime>
+#include <Wt/WGlobal.h>
+#include <Wt/WApplication.h> // for ApplicationCreator
+#include <Wt/WDateTime.h>
 
 #include "global.hpp"
 
@@ -238,11 +238,11 @@ otherwise to the body.
 */
 void set_closable(WDialog* dialog);
 
-/** Automatically delete this dialog, when finished.
+// /** Automatically delete this dialog, when finished.
 
-\ingroup util
-*/
-void delete_closed(WDialog* dialog);
+// \ingroup util
+// */
+// void delete_closed(WDialog* dialog);
 
 /** Fix WTextEdit position.
 This function was written, since WTextEdit doesn't tell its position properly
@@ -260,7 +260,7 @@ If the size of WTextEdit was not set, it is set to 525x130 pp.
 
 \ingroup util
 */
-void fix_text_edit(WTextEdit* text_edit);
+// void fix_text_edit(WTextEdit* text_edit);
 
 /** Excape UTF-8 chars (>=128) with \uXXXX sequences for Json parser.
 This function does preprocessing of JSON, containing UTF-8 chars.

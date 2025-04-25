@@ -7,7 +7,7 @@
 #ifndef FILETREETABLENODE_H_
 #define FILETREETABLENODE_H_
 
-#include <Wt/WTreeTableNode>
+#include <Wt/WTreeTableNode.h>
 
 #include <boost/filesystem/path.hpp>
 namespace Wt {
@@ -53,7 +53,7 @@ private:
   virtual bool expandable();
 
   //! Create the iconpair for representing the path.
-  static Wt::WIconPair *createIcon(const boost::filesystem::path& path);
+  static std::unique_ptr<Wt::WIconPair> createIcon(const boost::filesystem::path& path);
 };
 }
 }

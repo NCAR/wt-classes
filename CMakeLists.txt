@@ -26,7 +26,8 @@ find_package(Boost 1.42.0 COMPONENTS ${boost_libs} REQUIRED)
 set(WT_LIB_SUFFIX "" CACHE STRING "Wt lib suffix (empty or 'd')")
 
 set(datadir ${CMAKE_INSTALL_PREFIX}/share CACHE PATH "Root of data files")
-set(WT_DIR ${datadir}/Wt CACHE PATH "Wt installation dir")
+set(WT_DIR ${datadir} CACHE PATH "Wt installation dir")
+message("WT_DIR is ${WT_DIR}")
 set(DOC_SUBDIR ${datadir}/doc/libwtclasses CACHE PATH "Docs subdir")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/features/ubuntu-gcc.cmake)
@@ -39,6 +40,8 @@ LINK_DIRECTORIES(
 ${WT_DIR}/lib
 ${Boost_LIBRARY_DIR}
 )
+get_property(propVal DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+message("INCLUDE_DIRECTORIES: ${propVal}")
 
 subdirs(src)
 file(GLOB local_headers "${local_headers_dir}/*.hpp")

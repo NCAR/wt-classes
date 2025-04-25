@@ -7,8 +7,8 @@
 #include <boost/make_shared.hpp>
 #include <boost/thread/tss.hpp>
 
-#include <Wt/WServer>
-#include <Wt/WApplication>
+#include <Wt/WServer.h>
+#include <Wt/WApplication.h>
 
 #include "Notify.hpp"
 
