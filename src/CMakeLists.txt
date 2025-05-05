@@ -85,3 +85,4 @@ if(BUILD_STATIC_WC)
 endif()
 install(FILES ${wtclasses_headers} DESTINATION include/Wt/Wc)
 
+install(FILES global.hpp DESTINATION include/Wt/Wc)
