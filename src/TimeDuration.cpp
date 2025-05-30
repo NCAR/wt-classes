@@ -23,9 +23,9 @@ TimeDuration::TimeDuration():
     std::chrono::seconds(0)
 { }
 
-// TimeDuration::TimeDuration(const std::chrono::seconds& duration):
-//     ptime::duration(duration)
-// { }
+TimeDuration::TimeDuration(const ptime::seconds& duration):
+    ptime::seconds(duration)
+{ }
 
 TimeDuration::operator std::string() const {
     std::ostringstream os;
