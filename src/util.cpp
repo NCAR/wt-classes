@@ -24,7 +24,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
-// #include <boost/make_shared.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/foreach.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/lexical_cast.hpp>
@@ -35,7 +35,7 @@
 #if !USE_WIOSERVICE
 #include <boost/system/error_code.hpp>
 #include <boost/thread.hpp>
-// #include <boost/asio.hpp>
+#include <boost/asio.hpp>
 #endif
 
 #ifdef WC_USE_WT_MD5
@@ -119,21 +119,21 @@ static void thread_func(boost::function<void()> func, WApplication* app,
 }
 #endif
 
-// boost::function<void()> bound_post(boost::function<void()> func) {
-//     if (wApp) {
-// #if USE_SERVER_POST
-//         WServer* server = DOWNCAST<WServer*>(wApp->environment().server());
-//         return boost::bind(post, server, wApp->sessionId(), func);
-// #else
-//         BoolPtr ptr = boost::make_shared<bool>();
-//         *ptr = false;
-//         wApp->addChild(new AG(ptr));
-//         return boost::bind(thread_func, func, wApp, ptr);
-// #endif
-//     } else {
-//         return boost::bind(schedule_action, td::TD_NULL, func);
-//     }
-// }
+boost::function<void()> bound_post(boost::function<void()> func) {
+    if (wApp) {
+#if USE_SERVER_POST
+        WServer* server = DOWNCAST<WServer*>(wApp->environment().server());
+        return boost::bind(post, server, wApp->sessionId(), func);
+#else
+        BoolPtr ptr = boost::make_shared<bool>();
+        *ptr = false;
+        wApp->addChild(std::make_unique<AG>(ptr));
+        return boost::bind(thread_func, func, wApp, ptr);
+#endif
+    } else {
+        return boost::bind(schedule_action, td::TD_NULL, func);
+    }
+}
 
 typedef std::vector<boost::any> Anys;
 
@@ -341,52 +341,52 @@ std::string bool_to_string(bool value) {
 #define USE_WIOSERVICE (defined(WC_HAVE_WIOSERVICE) && \
         defined(WC_HAVE_ENVIRONMENT_SERVER))
 
-// #if !USE_WIOSERVICE
-// typedef boost::asio::deadline_timer Timer;
-// typedef boost::shared_ptr<Timer> TimerPtr;
+#if !USE_WIOSERVICE
+typedef boost::asio::deadline_timer Timer;
+typedef boost::shared_ptr<Timer> TimerPtr;
 
-// struct WcIoService {
-//     WcIoService():
-//         work(new boost::asio::io_service::work(io)) {
-//         for (int i = 0; i < boost::thread::hardware_concurrency(); i++) {
-//             gr.create_thread(boost::bind(&boost::asio::io_service::run, &io));
-//         }
-//     }
+struct WcIoService {
+    WcIoService():
+        work(new boost::asio::io_service::work(io)) {
+        for (int i = 0; i < boost::thread::hardware_concurrency(); i++) {
+            gr.create_thread(boost::bind(&boost::asio::io_service::run, &io));
+        }
+    }
 
-//     ~WcIoService() {
-//         delete work;
-//         io.stop();
-//     }
+    ~WcIoService() {
+        delete work;
+        io.stop();
+    }
 
-//     boost::asio::io_service io;
-//     boost::asio::io_service::work* work;
-//     boost::thread_group gr;
-// } wc_io;
+    boost::asio::io_service io;
+    boost::asio::io_service::work* work;
+    boost::thread_group gr;
+} wc_io;
 
-// static void handle_timeout(TimerPtr /* timer */,
-//                            const boost::function<void()>& func,
-//                            const boost::system::error_code& e) {
-//     if (!e) {
-//         func();
-//     }
-// }
-// #endif
+static void handle_timeout(TimerPtr /* timer */,
+                           const boost::function<void()>& func,
+                           const boost::system::error_code& e) {
+    if (!e) {
+        func();
+    }
+}
+#endif
 
-// void schedule_action(const td::TimeDuration& wait,
-//                      const boost::function<void()>& func) {
-// #if USE_WIOSERVICE
-//     int ms = wait.total_milliseconds();
-//     if (ms < 0) {
-//         ms = INT_MAX;
-//     }
-//     WIOService& io = WServer::instance()->ioService();
-//     io.schedule(ms, func);
-// #else
-//     TimerPtr timer = boost::make_shared<Timer>(wc_io.io, wait);
-//     timer->async_wait(boost::bind(handle_timeout, timer, func,
-//                                   boost::asio::placeholders::error));
-// #endif
-// }
+void schedule_action(const td::TimeDuration& wait,
+                     const boost::function<void()>& func) {
+#if USE_WIOSERVICE
+    int ms = wait.total_milliseconds();
+    if (ms < 0) {
+        ms = INT_MAX;
+    }
+    WIOService& io = WServer::instance()->ioService();
+    io.schedule(ms, func);
+#else
+    TimerPtr timer = boost::make_shared<Wt::Wc::Timer>(wc_io.io, wait);
+    timer->async_wait(boost::bind(handle_timeout, timer, func,
+                                  boost::asio::placeholders::error));
+#endif
+}
 
 std::string approot() {
 #ifdef WC_HAVE_WAPPLICATION_APPROOT
