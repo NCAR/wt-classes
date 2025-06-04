@@ -1,8 +1,8 @@
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.hpp.in
     ${CMAKE_CURRENT_BINARY_DIR}/config.hpp)
 
-set(wtclasses_sources FileTreeTable.cpp FileTreeTableNode.cpp Notify.cpp TimeDuration.cpp util.cpp)
-set(wtclasses_headers FileTreeTable.hpp FileTreeTableNode.hpp Notify.hpp TimeDuration.hpp util.hpp)
+set(wtclasses_sources FileTreeTable.cpp FileTreeTableNode.cpp Notify.cpp TimeDuration.cpp rand.cpp util.cpp)
+set(wtclasses_headers FileTreeTable.hpp FileTreeTableNode.hpp Notify.hpp TimeDuration.hpp rand.hpp util.hpp)
 
 # file(GLOB wtclasses_sources "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 # file(GLOB wtclasses_headers "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
