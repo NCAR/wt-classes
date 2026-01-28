@@ -41,9 +41,13 @@
 #ifdef WC_USE_WT_MD5
 #include <Wt/Utils.h>
 #endif
+
 #ifdef WC_USE_OPENSSL
-#include <openssl/md5.h>
+#include <openssl/evp.h>
+#include <sstream>
+#include <string>
 #endif
+
 #ifdef WC_HAVE_WIOSERVICE
 #include <Wt/WIOService.h>
 #endif
@@ -263,15 +267,17 @@ std::string md5(const std::string& data) {
 #ifdef WC_USE_WT_MD5
     return Wt::Utils::hexEncode(Wt::Utils::md5(data));
 #elif defined(WC_USE_OPENSSL)
-    const unsigned char* d;
-    d = reinterpret_cast<const unsigned char*>(data.c_str());
-    unsigned long n = data.size();
-    unsigned char* digest = MD5(d, n, NULL);
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int digest_len = 0;
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(ctx, EVP_md5(), nullptr);
+    EVP_DigestUpdate(ctx, data.data(), data.size());
+    EVP_DigestFinal_ex(ctx, digest, &digest_len);
+    EVP_MD_CTX_free(ctx);
     std::stringstream result;
     result << std::hex;
-    result.width(2);
     result.fill('0');
-    for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+    for (unsigned int i = 0; i < digest_len; ++i) {
         result.width(2);
         result << static_cast<unsigned int>(digest[i]);
     }
