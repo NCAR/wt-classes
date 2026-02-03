@@ -13,9 +13,9 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/any.hpp>
 
-#include <Wt/WGlobal.h>
-#include <Wt/WApplication.h> // for ApplicationCreator
-#include <Wt/WDateTime.h>
+#include <Wt/WGlobal>
+#include <Wt/WApplication> // for ApplicationCreator
+#include <Wt/WDateTime>
 
 #include "global.hpp"
 

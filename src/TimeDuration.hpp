@@ -11,7 +11,7 @@
 #include <string>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-#include <Wt/WGlobal.h>
+#include <Wt/WGlobal>
 
 namespace Wt {
 

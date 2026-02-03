@@ -16,7 +16,7 @@
 #include <boost/weak_ptr.hpp>
 #include <boost/any.hpp>
 
-#include <Wt/WGlobal.h>
+#include <Wt/WGlobal>
 
 #include "global.hpp"
 #include "util.hpp"

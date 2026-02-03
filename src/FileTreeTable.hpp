@@ -7,10 +7,10 @@
 #ifndef FILETREETABLE_H_
 #define FILETREETABLE_H_
 
-#include <Wt/WTreeTable.h>
-#include <Wt/WTree.h>
-#include <Wt/WTreeNode.h>
-#include <Wt/WTreeTableNode.h>
+#include <Wt/WTreeTable>
+#include <Wt/WTree>
+#include <Wt/WTreeNode>
+#include <Wt/WTreeTableNode>
 
 #include <boost/filesystem/path.hpp>
 namespace Wt {

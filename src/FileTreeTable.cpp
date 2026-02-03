@@ -8,7 +8,7 @@
 #include "FileTreeTable.hpp"
 #include "FileTreeTableNode.hpp"
 
-#include <Wt/WText.h>
+#include <Wt/WText>
 
 namespace Wt {
 namespace Wc {
@@ -24,7 +24,7 @@ namespace Wc {
   header(1)->setStyleClass("fsize");
   header(2)->setStyleClass("date");
 
-  setTreeRoot(std::make_unique<FileTreeTableNode>(path, suffix), "File");
+  setTreeRoot(std::make_unique<FileTreeTableNode>(path, suffix).get(), "File");
 
   treeRoot()->expand();
 }

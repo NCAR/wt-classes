@@ -39,7 +39,7 @@
 #endif
 
 #ifdef WC_USE_WT_MD5
-#include <Wt/Utils.h>
+#include <Wt/Utils>
 #endif
 
 #ifdef WC_USE_OPENSSL
@@ -49,23 +49,23 @@
 #endif
 
 #ifdef WC_HAVE_WIOSERVICE
-#include <Wt/WIOService.h>
+#include <Wt/WIOService>
 #endif
 
-#include <Wt/WApplication.h>
-#include <Wt/WEnvironment.h>
-#include <Wt/WServer.h>
-#include <Wt/WLineEdit.h>
-#include <Wt/WTextArea.h>
-#include <Wt/WTextEdit.h>
-#include <Wt/WPushButton.h>
-#include <Wt/WComboBox.h>
-#include <Wt/WAbstractToggleButton.h>
-#include <Wt/WSlider.h>
-#include <Wt/WDialog.h>
-#include <Wt/WTableView.h>
+#include <Wt/WApplication>
+#include <Wt/WEnvironment>
+#include <Wt/WServer>
+#include <Wt/WLineEdit>
+#include <Wt/WTextArea>
+#include <Wt/WTextEdit>
+#include <Wt/WPushButton>
+#include <Wt/WComboBox>
+#include <Wt/WAbstractToggleButton>
+#include <Wt/WSlider>
+#include <Wt/WDialog>
+#include <Wt/WTableView>
 #ifndef WC_HAVE_STRING_LOCALE
-#include <Wt/WLocale.h>
+#include <Wt/WLocale>
 #endif
 
 #include "util.hpp"
@@ -131,7 +131,7 @@ boost::function<void()> bound_post(boost::function<void()> func) {
 #else
         BoolPtr ptr = boost::make_shared<bool>();
         *ptr = false;
-        wApp->addChild(std::make_unique<AG>(ptr));
+        wApp->addChild(std::make_unique<AG>(ptr).get());
         return boost::bind(thread_func, func, wApp, ptr);
 #endif
     } else {
@@ -434,7 +434,8 @@ void set_closable(WDialog* dialog) {
 #ifdef WC_HAVE_WDIALOG_TITLEBAR
     close = dialog->titleBar()->insertWidget(std::make_unique<WPushButton>("X"), 0, close);
 #else
-    close = dialog->contents()->addWidget(std::make_unique<WPushButton>("X"));
+    close = std::make_unique<WPushButton>("X").get();
+    dialog->contents()->addWidget(close);
 #endif
 #endif
 close->clicked().connect(dialog, &WDialog::reject);

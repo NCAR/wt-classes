@@ -38,7 +38,7 @@
 #cmakedefine WC_HAVE_RECAPTCHA
 
 #ifndef WC_HAVE_WIDGET_DO_JAVA_SCRIPT
-#include <Wt/WApplication.h>
+#include <Wt/WApplication>
 #endif
 
 namespace Wt {

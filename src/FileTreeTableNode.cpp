@@ -12,9 +12,9 @@
 #include <iostream>
 #include <time.h>
 
-#include <Wt/WIconPair.h>
-#include <Wt/WStringUtil.h>
-#include <Wt/WText.h>
+#include <Wt/WIconPair>
+#include <Wt/WStringUtil>
+#include <Wt/WText>
 
 namespace Wt {
 namespace Wc {
@@ -28,16 +28,16 @@ FileTreeTableNode::FileTreeTableNode(const boost::filesystem::path& path,
   : WTreeTableNode(path.leaf(), createIcon(path)),
 #endif
 #else
-  : WTreeTableNode(path.leaf().string(), createIcon(path)),
+  : WTreeTableNode(path.leaf().string(), createIcon(path).get()),
 #endif
     path_(path) ,suffix_(suffix)
 {
-  label()->setTextFormat(TextFormat::Plain);
+  label()->setTextFormat(TextFormat::PlainText);
 
   if (boost::filesystem::exists(path)) {
     if (!boost::filesystem::is_directory(path)) {
       int fsize = (int)boost::filesystem::file_size(path);
-      setColumnWidget(1, std::make_unique<WText>(boost::lexical_cast<std::string>(fsize)));
+      setColumnWidget(1, std::make_unique<WText>(boost::lexical_cast<std::string>(fsize)).get());
       columnWidget(1)->setStyleClass("fsize");
     } else
       setSelectable(false);
@@ -53,7 +53,7 @@ FileTreeTableNode::FileTreeTableNode(const boost::filesystem::path& path,
     char c[100];
     strftime(c, 100, "%b %d %Y", &ttm);
 
-    setColumnWidget(2, std::make_unique<WText>(c));
+    setColumnWidget(2, std::make_unique<WText>(c).get());
     columnWidget(2)->setStyleClass("date");
   }
 }
@@ -93,7 +93,7 @@ void FileTreeTableNode::populate()
     for (std::set<boost::filesystem::path>::iterator i = paths.begin();
       i != paths.end(); ++i)
       try {
-        addChildNode(std::make_unique<FileTreeTableNode>(*i));
+        addChildNode(std::make_unique<FileTreeTableNode>(*i).get());
       } catch (boost::filesystem::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
       }

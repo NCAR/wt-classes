@@ -7,7 +7,7 @@
 #ifndef FILETREETABLENODE_H_
 #define FILETREETABLENODE_H_
 
-#include <Wt/WTreeTableNode.h>
+#include <Wt/WTreeTableNode>
 
 #include <boost/filesystem/path.hpp>
 namespace Wt {

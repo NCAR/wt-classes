@@ -5,7 +5,7 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <Wt/WDateTime.h>
+#include <Wt/WDateTime>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
 
 #include "TimeDuration.hpp"
