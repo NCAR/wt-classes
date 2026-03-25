@@ -7,11 +7,12 @@
 
 #include <map>
 #include "boost-xtime.hpp"
-#include <boost/thread/mutex.hpp>
+#include <mutex>
+#include <thread>
 
-#include <Wt/WDateTime>
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
+#include <Wt/WDateTime.h>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
 
 #include "AbstractCaptcha.hpp"
 #include "TimeDuration.hpp"
@@ -21,23 +22,20 @@ namespace Wt {
 
 namespace Wc {
 
-AbstractCaptcha::AbstractCaptcha(WContainerWidget* parent):
-    WCompositeWidget(parent),
-    fault_(0),
+AbstractCaptcha::AbstractCaptcha(std::unique_ptr<WWidget> parent):
+    WCompositeWidget(std::move(parent)),
+    fault_(),
     in_progress_(false),
     is_solved_(false)
 { }
 
-AbstractCaptcha::~AbstractCaptcha() {
-    delete fault_;
-    fault_ = 0;
-}
+AbstractCaptcha::~AbstractCaptcha() {}
 
 void AbstractCaptcha::check() {
     if (is_solved_) {
         solved_.emit();
     } else if (!in_progress_) {
-        WString error = precheck_.empty() ? WString::Empty : precheck_();
+        WString error = !precheck_ ? WString::Empty : precheck_();
         if (!error.empty()) {
             mistake(error);
         } else {
@@ -53,13 +51,6 @@ void AbstractCaptcha::update() {
     update_impl();
 }
 
-AbstractCaptcha::FaultSignal& AbstractCaptcha::fault() {
-    if (!fault_) {
-        fault_ = new FaultSignal(this);
-    }
-    return *fault_;
-}
-
 void AbstractCaptcha::set_buttons(bool)
 { }
 
@@ -68,7 +59,7 @@ void AbstractCaptcha::set_input(WFormWidget* /* input */)
 
 namespace frequency_check_namespace {
 
-boost::mutex mutex;
+std::mutex mutex;
 typedef std::map<std::string, WDateTime> Map;
 Map ip2last;
 int calls = 0;
@@ -79,7 +70,7 @@ const td::TimeDuration INTERVAL = 3 * td::SECOND;
 
 WString AbstractCaptcha::frequency_check() {
     using namespace frequency_check_namespace;
-    boost::mutex::scoped_lock lock(mutex);
+    std::scoped_lock lock(mutex);
     WString result;
     const std::string ip = wApp->environment().clientAddress();
     Map::iterator it = ip2last.find(ip);
@@ -112,12 +103,8 @@ void AbstractCaptcha::solve() {
 
 void AbstractCaptcha::mistake(const WString& message) {
     update();
-    if (fault_) {
-        fault_->emit(message);
-    }
+    fault_.emit(message);
+}
 }
 
 }
-
-}
-

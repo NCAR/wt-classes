@@ -8,11 +8,12 @@
 #ifndef WC_ABSTRACT_CAPTCHA_HPP_
 #define WC_ABSTRACT_CAPTCHA_HPP_
 
-#include <boost/function.hpp>
+#include <functional>
+#include <memory>
 
-#include <Wt/WGlobal>
-#include <Wt/WCompositeWidget>
-#include <Wt/WSignal>
+#include <Wt/WGlobal.h>
+#include <Wt/WCompositeWidget.h>
+#include <Wt/WSignal.h>
 
 namespace Wt {
 
@@ -34,10 +35,10 @@ public:
     typedef Signal<WString> FaultSignal;
 
     /** A function, returning WString */
-    typedef boost::function<WString()> Test;
+    typedef std::function<WString()> Test;
 
     /** Constructor */
-    AbstractCaptcha(WContainerWidget* parent = 0);
+    AbstractCaptcha(std::unique_ptr<WWidget> parent);
 
     /** Destructor */
     ~AbstractCaptcha();
@@ -68,7 +69,9 @@ public:
     }
 
     /** Return the signal emitted if the test was failed */
-    FaultSignal& fault();
+    FaultSignal& fault() {
+        return fault_;
+    }
 
     /** Enable or disable buttons.
     Buttons (like Update button) can be added by implementations.
@@ -131,7 +134,7 @@ protected:
 
 private:
     Signal<> solved_;
-    FaultSignal* fault_;
+    FaultSignal fault_;
     Test precheck_;
     bool in_progress_: 1;
     bool is_solved_: 1;
