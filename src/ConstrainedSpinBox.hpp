@@ -8,15 +8,15 @@
 #ifndef WC_CONSTRAINED_SPIN_BOX_HPP_
 #define WC_CONSTRAINED_SPIN_BOX_HPP_
 
-#include <Wt/WGlobal>
+#include <Wt/WGlobal.h>
 #include "config.hpp"
 
 #ifdef WC_HAVE_WSPINBOX
-#include <Wt/WSpinBox>
+#include <Wt/WSpinBox.h>
 #endif
 
 #ifdef WC_HAVE_WDOUBLESPINBOX
-#include <Wt/WDoubleSpinBox>
+#include <Wt/WDoubleSpinBox.h>
 #endif
 
 namespace Wt {
