@@ -9,7 +9,7 @@
 #define WC_UTIL_HPP_
 
 #include <boost/cast.hpp>
-#include <boost/function.hpp>
+#include <functional>
 #include <boost/lexical_cast.hpp>
 #include <boost/any.hpp>
 
@@ -68,9 +68,9 @@ bool isinstance(const S* object) {
 
 /** Return the same function, but being called afterwards in this application.
 When returned function is called, it looks as if original function were called
-inside current application (wApp for the moment bound_post was called).
+inside current application (WApplication::instance() for the moment bound_post was called).
 
-If wApp == 0 for the moment bound_post was called,
+If WApplication::instance() == 0 for the moment bound_post was called,
 the target function is called outside of Wt event loop
 (returned function calls schedule_action(td::TD_NULL, func)).
 
@@ -82,13 +82,13 @@ but this function really does work.
 
 \ingroup util
 */
-boost::function<void()> bound_post(boost::function<void()> func);
+std::function<void()> bound_post(std::function<void()> func);
 
 /** Function of one argument.
 
 \ingroup util
 */
-typedef boost::function<void(const boost::any&)> OneAnyFunc;
+typedef std::function<void(const boost::any&)> OneAnyFunc;
 
 /** Return the same function, but being called afterwards.
 \param func The function, called afterwards as if it is called in this app.
@@ -107,9 +107,9 @@ OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge = true);
 
 /** Call triggerUpdate() in current WApplication, if updates are enabled.
 
-If !wApp or application is quited, does nothing.
+If !WApplication::instance() or application is quited, does nothing.
 
-\note This is only possible after a call to wApp->enableUpdates()
+\note This is only possible after a call to WApplication::instance()->enableUpdates()
 
 \ingroup util
 */
@@ -118,7 +118,7 @@ void updates_trigger();
 /** Post updates_poster() to the application.
 If server.post() is available, it is used, else bound_post() is used.
 
-\note This is only possible after a call to wApp->enableUpdates()
+\note This is only possible after a call to WApplication::instance()->enableUpdates()
 
 \ingroup util
 */
@@ -139,7 +139,7 @@ std::string unique_filename();
 The convenience method for readConfigurationProperty().
 On error, \p def value is returned.
 
-\attention wApp should be defined, else the default would be returned.
+\attention WApplication::instance() should be defined, else the default would be returned.
 
 \ingroup util
 */
@@ -198,7 +198,7 @@ else boost::asio::io_service with WApplication::UpdateLock is used.
 \ingroup util
 */
 void schedule_action(const td::TimeDuration& wait,
-                     const boost::function<void()>& func);
+                     const std::function<void()>& func);
 
 /** Return WApplication::appRoot() if found or config_value("approot").
 
@@ -303,7 +303,7 @@ Priority: skip_re > target_blank_re > internal_path_re > built-in rules.
 
 This function is safe to be called multiple times.
 
-If !wApp, then does nothing.
+If !WApplication::instance(), then does nothing.
 
 \ingroup util
 */
@@ -313,7 +313,7 @@ void fix_plain_anchors(int interval_ms = 400,
                        const std::string& internal_path_re = "/^$/");
 
 /** Return locale string of an application.
-\param app Application. 0 means wApp.
+\param app Application. 0 means WApplication::instance().
 Shitty non-compatible change in Wt 3.3.0 replaced string WApplication::locale()
 with WLocale. This is a workaround function.
 */
@@ -321,7 +321,7 @@ std::string get_locale(WApplication* app = 0);
 
 /** Set locale string of an application.
 \param locale Locale as string.
-\param app Application. 0 means wApp.
+\param app Application. 0 means WApplication::instance().
 FTGJ
 */
 void set_locale(const std::string& locale, WApplication* app = 0);
@@ -345,4 +345,3 @@ int wrun_stop_ioservice(int argc, char** argv, ApplicationCreator creator);
 }
 
 #endif
-

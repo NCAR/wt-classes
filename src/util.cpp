@@ -22,10 +22,8 @@
 #include <cstdio>
 #include <fstream>
 #include <boost/filesystem.hpp>
-#include <boost/bind.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/foreach.hpp>
+#include <functional>
+#include <memory>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/lexical_cast.hpp>
 #if !USE_SERVER_POST
@@ -77,18 +75,18 @@ namespace Wt {
 namespace Wc {
 
 #if USE_SERVER_POST
-static void func_runner(const boost::function<void()>& func) {
-    if (!wApp->isQuited()) {
+static void func_runner(const std::function<void()>& func) {
+    if (WApplication::instance() && !WApplication::instance()->hasQuit()) {
         func();
     }
 }
 
 static void post(WServer* server, const std::string& app,
-                 const boost::function<void()>& func) {
-    server->post(app, boost::bind(func_runner, func));
+                 const std::function<void()>& func) {
+    server->post(app, [func]() { func_runner(func); });
 }
 #else
-typedef boost::shared_ptr<bool> BoolPtr;
+typedef std::shared_ptr<bool> BoolPtr;
 
 class AG : public WObject {
 public:
@@ -106,7 +104,7 @@ private:
 
 boost::mutex do_func_mutex;
 
-static void do_func(boost::function<void()> func, WApplication* app,
+static void do_func(std::function<void()> func, WApplication* app,
                     BoolPtr b) {
     boost::mutex::scoped_lock do_func_lock(do_func_mutex);
     if (!*b && !app->hasQuit()) {
@@ -117,25 +115,26 @@ static void do_func(boost::function<void()> func, WApplication* app,
     }
 }
 
-static void thread_func(boost::function<void()> func, WApplication* app,
+static void thread_func(std::function<void()> func, WApplication* app,
                         BoolPtr b) {
-    schedule_action(td::TD_NULL, boost::bind(do_func, func, app, b));
+    schedule_action(td::TD_NULL, [func, app, b]() { do_func(func, app, b); });
 }
 #endif
 
-boost::function<void()> bound_post(boost::function<void()> func) {
-    if (wApp) {
+std::function<void()> bound_post(std::function<void()> func) {
+    if (WApplication::instance()) {
 #if USE_SERVER_POST
-        WServer* server = DOWNCAST<WServer*>(wApp->environment().server());
-        return boost::bind(post, server, wApp->sessionId(), func);
+        WServer* server = DOWNCAST<WServer*>(WApplication::instance()->environment().server());
+        std::string sessionId = WApplication::instance()->sessionId();
+        return [server, sessionId, func]() { post(server, sessionId, func); };
 #else
-        BoolPtr ptr = boost::make_shared<bool>();
-        *ptr = false;
-        wApp->addChild(std::make_unique<AG>(ptr));
-        return boost::bind(thread_func, func, wApp, ptr);
+        BoolPtr ptr = std::make_shared<bool>(false);
+        WApplication::instance()->addChild(std::make_unique<AG>(ptr));
+        WApplication* app = WApplication::instance();
+        return [func, app, ptr]() { thread_func(func, app, ptr); };
 #endif
     } else {
-        return boost::bind(schedule_action, td::TD_NULL, func);
+        return [func]() { schedule_action(td::TD_NULL, func); };
     }
 }
 
@@ -157,7 +156,7 @@ struct OneAnyFuncBinder {
             Anys anys_copy = anys;
             anys.clear();
             mutex.unlock();
-            BOOST_FOREACH (const boost::any& arg, anys_copy) {
+            for (const auto& arg : anys_copy) {
                 func(arg);
             }
         } else {
@@ -169,7 +168,7 @@ struct OneAnyFuncBinder {
         }
     }
     OneAnyFunc func;
-    boost::shared_ptr<OneData> arg_ptr;
+    std::shared_ptr<OneData> arg_ptr;
 };
 
 struct OneAnyFuncHolder {
@@ -185,15 +184,15 @@ struct OneAnyFuncHolder {
             posted_binder();
         }
     }
-    boost::function<void()> posted_binder;
-    boost::shared_ptr<OneData> arg_ptr;
+    std::function<void()> posted_binder;
+    std::shared_ptr<OneData> arg_ptr;
 };
 
 OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge) {
     OneAnyFuncBinder binder;
     OneAnyFuncHolder holder;
     binder.func = func;
-    binder.arg_ptr = boost::make_shared<OneData>();
+    binder.arg_ptr = std::make_shared<OneData>();
     binder.arg_ptr->allow_merge = allow_merge;
     holder.arg_ptr = binder.arg_ptr;
     holder.posted_binder = bound_post(binder);
@@ -201,8 +200,8 @@ OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge) {
 }
 
 void updates_trigger() {
-    if (wApp && wApp->updatesEnabled() && !wApp->hasQuit()) {
-        wApp->triggerUpdate();
+    if (WApplication::instance() && WApplication::instance()->updatesEnabled() && !WApplication::instance()->hasQuit()) {
+        WApplication::instance()->triggerUpdate();
     }
 }
 
@@ -252,8 +251,8 @@ std::string unique_filename() {
 
 std::string config_value(const std::string& name, const std::string& def) {
     std::string value = def;
-    if (wApp) {
-        wApp->readConfigurationProperty(name, value);
+    if (WApplication::instance()) {
+        WApplication::instance()->readConfigurationProperty(name, value);
     }
     return value;
 }
@@ -292,7 +291,7 @@ std::string urlencode(const std::string& url) {
     result.setf(std::ios::uppercase);
     result.width(2);
     result.fill('0');
-    BOOST_FOREACH (char c, url) {
+    for (char c : url) {
         if (c == ' ') {
             result.put('+');
         } else if (c == '-' || c == '_' || c == '.') {
@@ -349,13 +348,13 @@ std::string bool_to_string(bool value) {
 
 #if !USE_WIOSERVICE
 typedef boost::asio::deadline_timer Timer;
-typedef boost::shared_ptr<Timer> TimerPtr;
+typedef std::shared_ptr<Timer> TimerPtr;
 
 struct WcIoService {
     WcIoService():
         work(new boost::asio::io_service::work(io)) {
         for (int i = 0; i < boost::thread::hardware_concurrency(); i++) {
-            gr.create_thread(boost::bind(&boost::asio::io_service::run, &io));
+            gr.create_thread([this]() { io.run(); });
         }
     }
 
@@ -370,7 +369,7 @@ struct WcIoService {
 } wc_io;
 
 static void handle_timeout(TimerPtr /* timer */,
-                           const boost::function<void()>& func,
+                           const std::function<void()>& func,
                            const boost::system::error_code& e) {
     if (!e) {
         func();
@@ -379,7 +378,7 @@ static void handle_timeout(TimerPtr /* timer */,
 #endif
 
 void schedule_action(const td::TimeDuration& wait,
-                     const boost::function<void()>& func) {
+                     const std::function<void()>& func) {
 #if USE_WIOSERVICE
     int ms = wait.total_milliseconds();
     if (ms < 0) {
@@ -388,9 +387,10 @@ void schedule_action(const td::TimeDuration& wait,
     WIOService& io = WServer::instance()->ioService();
     io.schedule(ms, func);
 #else
-    TimerPtr timer = boost::make_shared<Wt::Wc::Timer>(wc_io.io, wait);
-    timer->async_wait(boost::bind(handle_timeout, timer, func,
-                                  boost::asio::placeholders::error));
+    TimerPtr timer = std::make_shared<Wt::Wc::Timer>(wc_io.io, wait);
+    timer->async_wait([timer, func](const boost::system::error_code& e) {
+        handle_timeout(timer, func, e);
+    });
 #endif
 }
 
@@ -452,7 +452,7 @@ close->clicked().connect(dialog, &WDialog::reject);
 // }
 
 // void fix_text_edit(WTextEdit* text_edit) {
-//     if (wApp && !wApp->environment().ajax()) {
+//     if (WApplication::instance() && !WApplication::instance()->environment().ajax()) {
 //         return;
 //     }
 //     WWidget* parent_widget = text_edit->parent();
@@ -490,12 +490,12 @@ std::string json_escape_utf8(const std::string& utf8) {
 
 void scroll_to_last(WTableView* view) {
 #ifdef WC_HAVE_ITEMVIEW_PAGING
-    if (!wApp || !wApp->environment().ajax() || view->pageCount() > 0) {
+    if (!WApplication::instance() || !WApplication::instance()->environment().ajax() || view->pageCount() > 0) {
         view->setCurrentPage(view->pageCount() - 1);
     } else
 #endif
-        if (wApp) {
-            wApp->doJavaScript("$('#" + view->id() + " div')"
+        if (WApplication::instance()) {
+            WApplication::instance()->doJavaScript("$('#" + view->id() + " div')"
                                ".scrollTop(999999999);");
         }
 }
@@ -512,7 +512,7 @@ void fix_plain_anchors(int interval_ms,
                        const std::string& skip_re,
                        const std::string& target_blank_re,
                        const std::string& internal_path_re) {
-    if (!wApp) {
+    if (!WApplication::instance()) {
         return;
     }
     std::stringstream s;
@@ -559,7 +559,7 @@ void fix_plain_anchors(int interval_ms,
 
 std::string get_locale(WApplication* app) {
     if (!app) {
-        app = wApp;
+        app = WApplication::instance();
     }
 #ifdef WC_HAVE_STRING_LOCALE
     return app->locale();
@@ -570,14 +570,14 @@ std::string get_locale(WApplication* app) {
 
 void set_locale(const std::string& locale, WApplication* app) {
     if (!app) {
-        app = wApp;
+        app = WApplication::instance();
     }
     app->setLocale(locale);
 }
 
 std::string url_scheme(WApplication* app) {
     if (!app) {
-        app = wApp;
+        app = WApplication::instance();
     }
     const WEnvironment& env = app->environment();
     std::string proto = env.headerValue("X-Forwarded-Proto");
@@ -614,4 +614,3 @@ bool stop_ioservice(WServer& server) {
 }
 
 }
-
