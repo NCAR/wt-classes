@@ -10,27 +10,28 @@
 
 #include <map>
 #include <vector>
-// #include "boost-xtime.hpp"
-#include <boost/thread/mutex.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/weak_ptr.hpp>
-#include <boost/any.hpp>
+#include <mutex>
+#include <memory>
+#include <any>
+#include <functional>
 
 #include <Wt/WGlobal.h>
 
-#include "global.hpp"
-#include "util.hpp"
-#include "config.hpp"
-
-namespace Wt {
-
-namespace Wc {
+typedef std::function<void(const std::any&)> OneAnyFunc;
+typedef std::vector<std::any> Anys;
 
 /** Namespace for notifications, passed to widgets
 
 \ingroup notify
 */
-namespace notify {
+namespace Wt::Wc::notify {
+
+
+  class Event;
+  class Widget;
+  class Server;
+  class Task;
+  class PlanningServer;
 
 /** \defgroup notify Notification server
 Notifications, passed to widgets.
@@ -81,7 +82,7 @@ public:
 
 \ingroup notify
 */
-typedef boost::shared_ptr<const Event> EventPtr;
+typedef std::shared_ptr<const Event> EventPtr;
 
 /** Base class for a widget to notify.
 
@@ -280,8 +281,8 @@ public:
     void stop_listening(const WidgetAndKeyList& changes);
 
 private:
-    typedef boost::shared_ptr<OneAnyFunc> PosterPtr;
-    typedef boost::weak_ptr<OneAnyFunc> PosterWeakPtr;
+    typedef std::shared_ptr<OneAnyFunc> PosterPtr;
+    typedef std::weak_ptr<OneAnyFunc> PosterWeakPtr;
     typedef std::vector<Widget*> Widgets;
     typedef std::pair<PosterPtr, Widgets> PosterAndWidgets;
     typedef std::map<WApplication*, PosterAndWidgets> A2W;
@@ -289,12 +290,12 @@ private:
     typedef std::map<WApplication*, PosterWeakPtr> A2P;
     O2W o2w_;
     A2P a2p_;
-    mutable boost::mutex mutex_;
+    mutable std::mutex mutex_;
     bool updates_enabled_;
     bool direct_to_this_;
     bool merge_allowed_;
 
-    void notify_widgets(const boost::any& event) const;
+    void notify_widgets(const std::any& event) const;
 
     PosterPtr get_poster_ptr(WApplication* app_id);
     void remove_key(Widget* widget, const Event::Key& key);
@@ -302,11 +303,7 @@ private:
     friend class Widget;
 };
 
-}
 
-}
-
-}
+} // namespace Wt::Wc::notify
 
 #endif
-

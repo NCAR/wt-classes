@@ -1,37 +1,134 @@
-
 #include <algorithm>
 #include <utility>
-#include "boost-xtime.hpp"
-#include <boost/bind.hpp>
-#include <boost/foreach.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/thread/tss.hpp>
 
+#include <Wt/WObject.h>
 #include <Wt/WServer.h>
 #include <Wt/WApplication.h>
 
 #include "Notify.hpp"
+#include "util.hpp"
+#include "TimeDuration.hpp"
 
-namespace Wt {
+namespace Wt::Wc::notify {
+#if USE_SERVER_POST
+    static void func_runner(const std::function<void()>& func) {
+        if (WApplication::instance() && !WApplication::instance()->hasQuit()) {
+            func();
+        }
+    }
 
-namespace Wc {
+    static void post(WServer* server, const std::string& app,
+                    const std::function<void()>& func) {
+        server->post(app, [func]() { func_runner(func); });
+    }
+#else
+    typedef std::shared_ptr<bool> BoolPtr;
 
-namespace notify {
+    class AG : public WObject {
+    public:
+        AG(const BoolPtr& ptr):
+            ptr_(ptr)
+        { }
+
+        ~AG() {
+            *ptr_ = true;
+        }
+
+    private:
+        BoolPtr ptr_;
+    };
+
+    std::mutex do_func_mutex;
+
+    static void do_func(std::function<void()> func, WApplication* app,
+                        BoolPtr b) {
+        std::scoped_lock do_func_lock(do_func_mutex);
+        if (!*b && !app->hasQuit()) {
+            WApplication::UpdateLock app_lock(app);
+            if (!*b && !app->hasQuit()) {
+                func();
+            }
+        }
+    }
+
+    static void thread_func(std::function<void()> func, WApplication* app,
+                            BoolPtr b) {
+        schedule_action(td::TimeDuration::zero(), [func, app, b]() { do_func(func, app, b); });
+    }
+#endif
+struct OneData {
+    Anys anys;
+    std::mutex mutex;
+    bool allow_merge;
+};
+
+struct OneAnyFuncBinder {
+    void operator()() {
+        std::mutex& mutex = arg_ptr->mutex;
+        Anys& anys = arg_ptr->anys;
+        bool allow_merge = arg_ptr->allow_merge;
+        if (allow_merge) {
+            mutex.lock();
+            Anys anys_copy = anys;
+            anys.clear();
+            mutex.unlock();
+            for (const std::any& arg : anys_copy) {
+                func(arg);
+            }
+        } else {
+            mutex.lock();
+            std::any arg = anys.back();
+            anys.pop_back();
+            mutex.unlock();
+            func(arg);
+        }
+    }
+    OneAnyFunc func;
+    std::shared_ptr<OneData> arg_ptr;
+};
+
+struct OneAnyFuncHolder {
+    void operator()(const std::any& arg) {
+        std::mutex& mutex = arg_ptr->mutex;
+        Anys& anys = arg_ptr->anys;
+        bool allow_merge = arg_ptr->allow_merge;
+        mutex.lock();
+        bool post_needed = !allow_merge || anys.empty();
+        anys.push_back(arg);
+        mutex.unlock();
+        if (post_needed) {
+            posted_binder();
+        }
+    }
+    std::function<void()> posted_binder;
+    std::shared_ptr<OneData> arg_ptr;
+};
+
+OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge) {
+    OneAnyFuncBinder binder;
+    OneAnyFuncHolder holder;
+    binder.func = func;
+    binder.arg_ptr = std::make_shared<OneData>();
+    binder.arg_ptr->allow_merge = allow_merge;
+    holder.arg_ptr = binder.arg_ptr;
+    holder.posted_binder = bound_post(binder);
+    return holder;
+}
 
 Event::~Event()
 { }
 
 Event::operator Event::Key() const {
-    return key();
+  return key();
 }
 
 Widget::Widget(const Event::Key& key, Server* server, const std::string& /*a*/):
-    server_(server), app_id_(wApp) {
+    server_(server), app_id_(Wt::WApplication::instance()) {
     start_listening(key);
 }
 
 Widget::Widget(Server* server):
-    server_(server), app_id_(wApp)
+    server_(server), app_id_(Wt::WApplication::instance())
 { }
 
 void Widget::start_listening(const Event::Key& key) {
@@ -42,7 +139,7 @@ void Widget::start_listening(const Event::Key& key) {
 
 void Widget::start_listening(const Event::KeyList& keylist) {
     Server::WidgetAndKeyList changes;
-    BOOST_FOREACH (const Event::Key& key, keylist) {
+    for (const Event::Key& key : keylist) {
         changes.push_back(std::make_pair(this, key));
     }
     server_->start_listening(changes);
@@ -50,10 +147,10 @@ void Widget::start_listening(const Event::KeyList& keylist) {
 
 void Widget::stop_listening(const Event::KeyList& keylist) {
     Server::WidgetAndKeyList changes;
-    BOOST_FOREACH (const Event::Key& key, keylist) {
+    for (const Event::Key& key : keylist) {
         changes.push_back(std::make_pair(this, key));
     }
-    server_->stop_listening(changes);
+server_->stop_listening(changes);
 }
 
 void Widget::stop_listening(const Event::Key& key) {
@@ -71,8 +168,8 @@ Widget::~Widget() {
 }
 
 void Widget::notify(EventPtr event) {
-    if (wApp) {
-        wApp->log("warn") << "Base class notify::Widget was notified.";
+    if (Wt::WApplication::instance()) {
+        Wt::WApplication::instance()->log("warn") << "Base class notify::Widget was notified.";
     }
 }
 
@@ -92,9 +189,9 @@ void Server::emit(EventPtr event) const {
     // find any Applications interested in this event
     O2W::const_iterator it = o2w_.find(event->key());
     if (it != o2w_.end()) {
-        BOOST_FOREACH (const A2W::value_type& a2w, it->second) {
+          for (const A2W::value_type& a2w : it->second) {
             WApplication* app = a2w.first;
-            if (!direct_to_this_ || app != wApp || app == 0) {
+            if (!direct_to_this_ || app != Wt::WApplication::instance() || app == 0) {
                 const PosterAndWidgets& poster_and_widgets = a2w.second;
                 const OneAnyFunc& poster = *(poster_and_widgets.first);
                 poster(event);
@@ -128,16 +225,16 @@ private:
 };
 
 void Server::emit(const std::string& key) const {
-    emit(boost::make_shared<DummyEvent>(key));
+    emit(std::make_shared<DummyEvent>(key));
 }
 
 Server::PosterPtr Server::get_poster_ptr(WApplication* app_id) {
     PosterWeakPtr& poster_weak_ptr = a2p_[app_id];
     PosterPtr poster_ptr;
     if (poster_weak_ptr.expired()) {
-        OneAnyFunc notify = boost::bind(&Server::notify_widgets, this, _1);
+        OneAnyFunc notify = [this](const std::any& arg) { this->notify_widgets(arg); };
         OneAnyFunc poster = one_bound_post(notify, merge_allowed_);
-        poster_ptr = boost::make_shared<OneAnyFunc>(poster);
+        poster_ptr = std::make_shared<OneAnyFunc>(poster);
         poster_weak_ptr = poster_ptr;
         return poster_ptr;
     } else {
@@ -146,10 +243,10 @@ Server::PosterPtr Server::get_poster_ptr(WApplication* app_id) {
 }
 
 void Server::start_listening(const WidgetAndKeyList& changes) {
-    boost::mutex::scoped_lock lock(mutex_);
-    WApplication* app_id = wApp;
+      std::lock_guard<std::mutex> lock(mutex_);
+    WApplication* app_id = Wt::WApplication::instance();
     PosterPtr poster_ptr = get_poster_ptr(app_id);
-    BOOST_FOREACH (const WidgetAndKey& widget_and_key, changes) {
+    for (const WidgetAndKey& widget_and_key : changes) {
         Widget* widget = widget_and_key.first;
         const Event::Key& key = widget_and_key.second;
         A2W& a2w = o2w_[key];
@@ -163,14 +260,10 @@ void Server::start_listening(const WidgetAndKeyList& changes) {
 }
 
 typedef std::set<Widget*> WidgetsSet;
-typedef boost::thread_specific_ptr<WidgetsSet> WidgetsSetPtr;
-WidgetsSetPtr widgets_set_ptr_;
 
 static WidgetsSet& widgets_set() {
-    if (widgets_set_ptr_.get() == 0) {
-        widgets_set_ptr_.reset(new WidgetsSet());
-    }
-    return *widgets_set_ptr_;
+    thread_local WidgetsSet widgets_s;
+    return widgets_s;
 }
 
 void Server::remove_key(Widget* widget, const Event::Key& key) {
@@ -202,8 +295,8 @@ void Server::remove_key(Widget* widget, const Event::Key& key) {
 }
 
 void Server::stop_listening(const WidgetAndKeyList& changes) {
-    boost::mutex::scoped_lock lock(mutex_);
-    BOOST_FOREACH (const WidgetAndKey& widget_and_key, changes) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const WidgetAndKey& widget_and_key : changes) {
         Widget* widget = widget_and_key.first;
         const Event::Key& key = widget_and_key.second;
         remove_key(widget, key);
@@ -211,15 +304,15 @@ void Server::stop_listening(const WidgetAndKeyList& changes) {
     }
 }
 
-void Server::notify_widgets(const boost::any& event) const {
+void Server::notify_widgets(const std::any& event) const {
     WidgetsSet& widgets_s = widgets_set();
     widgets_s.clear();
     mutex_.lock();
-    const EventPtr* e = boost::any_cast<EventPtr>(&event);
+    const EventPtr* e = std::any_cast<EventPtr>(&event);
     O2W::const_iterator o2w_it = o2w_.find((*e)->key());
     if (o2w_it != o2w_.end()) {
         const A2W& a2w = o2w_it->second;
-        A2W::const_iterator a2w_it = a2w.find(wApp);
+        A2W::const_iterator a2w_it = a2w.find(Wt::WApplication::instance());
         if (a2w_it != a2w.end()) {
             const PosterAndWidgets& paw = a2w_it->second;
             const Widgets& widgets_v = paw.second;
@@ -237,13 +330,10 @@ void Server::notify_widgets(const boost::any& event) const {
         widget->notify(*e);
     }
     if (updates_needed && updates_enabled_) {
-        updates_trigger();
+        if (Wt::WApplication::instance()) {
+          Wt::WApplication::instance()->triggerUpdate();
+        }
+      }
     }
-}
 
-}
-
-}
-
-}
-
+  }  // namespace Wt::Wc::notify
