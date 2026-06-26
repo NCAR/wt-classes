@@ -9,7 +9,7 @@
 
 #include <Wt/WTreeTableNode.h>
 
-#include <boost/filesystem/path.hpp>
+#include <filesystem>
 namespace Wt {
 namespace Wc {
 /**
@@ -35,13 +35,13 @@ public:
    * \param path directory to display
    * \param suffix if non-empty, only display files with this suffix
    */
-    FileTreeTableNode(const boost::filesystem::path& path, 
+    FileTreeTableNode(const std::filesystem::path& path, 
 
                       const std::string &suffix="");
 
 private:
   //! The path.
-  boost::filesystem::path path_;
+  std::filesystem::path path_;
 
   //! The suffix
   const std::string& suffix_;
@@ -53,7 +53,7 @@ private:
   virtual bool expandable();
 
   //! Create the iconpair for representing the path.
-  static std::unique_ptr<Wt::WIconPair> createIcon(const boost::filesystem::path& path);
+  static std::unique_ptr<Wt::WIconPair> createIcon(const std::filesystem::path& path);
 };
 }
 }

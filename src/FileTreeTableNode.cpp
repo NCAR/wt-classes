@@ -7,7 +7,6 @@
 
 #include "FileTreeTableNode.hpp"
 
-#include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <time.h>
@@ -19,35 +18,41 @@
 namespace Wt {
 namespace Wc {
 
-FileTreeTableNode::FileTreeTableNode(const boost::filesystem::path& path,
+FileTreeTableNode::FileTreeTableNode(const std::filesystem::path& path,
                                      const std::string &suffix) 
 #if BOOST_FILESYSTEM_VERSION < 3
 #ifndef WT_NO_STD_WSTRING
-  : WTreeTableNode(Wt::widen(path.leaf()), createIcon(path)),
+  : WTreeTableNode(Wt::widen(path.filename()), createIcon(path)),
 #else
-  : WTreeTableNode(path.leaf(), createIcon(path)),
+  : WTreeTableNode(path.filename(), createIcon(path)),
 #endif
 #else
-  : WTreeTableNode(path.leaf().string(), createIcon(path)),
+  : WTreeTableNode(path.filename().string(), createIcon(path)),
 #endif
     path_(path) ,suffix_(suffix)
 {
   label()->setTextFormat(TextFormat::Plain);
 
-  if (boost::filesystem::exists(path)) {
-    if (!boost::filesystem::is_directory(path)) {
-      int fsize = (int)boost::filesystem::file_size(path);
-      setColumnWidget(1, std::make_unique<WText>(boost::lexical_cast<std::string>(fsize)));
+  if (std::filesystem::exists(path)) {
+    if (!std::filesystem::is_directory(path)) {
+      int fsize = (int)std::filesystem::file_size(path);
+      setColumnWidget(1, std::make_unique<WText>(std::to_string(fsize)));
       columnWidget(1)->setStyleClass("fsize");
     } else
       setSelectable(false);
 
-    std::time_t t = boost::filesystem::last_write_time(path);
+    // Awful, ugly, icky code to convert a std::filesystem::file_time_type to a
+    // struct tm.
+    auto t = std::filesystem::last_write_time(path);
+    auto sctp = std::chrono::system_clock::time_point(
+        std::chrono::duration_cast<std::chrono::system_clock::duration>(t.time_since_epoch()));
+    std::time_t timeT = std::chrono::system_clock::to_time_t(sctp);
+
     struct tm ttm;
 #if WIN32
-    ttm=*localtime(&t);
+    localtime_s(&ttm, &timeT);
 #else
-    localtime_r(&t, &ttm);
+    localtime_r(&timeT, &ttm);
 #endif
 
     char c[100];
@@ -58,10 +63,10 @@ FileTreeTableNode::FileTreeTableNode(const boost::filesystem::path& path,
   }
 }
 
-std::unique_ptr<WIconPair> FileTreeTableNode::createIcon(const boost::filesystem::path& path)
+std::unique_ptr<WIconPair> FileTreeTableNode::createIcon(const std::filesystem::path& path)
 {
-  if (boost::filesystem::exists(path)
-      && boost::filesystem::is_directory(path))
+  if (std::filesystem::exists(path)
+      && std::filesystem::is_directory(path))
     return std::make_unique<WIconPair>("icons/yellow-folder-closed.png",
 			 "icons/yellow-folder-open.png", false);
   else
@@ -71,39 +76,32 @@ std::unique_ptr<WIconPair> FileTreeTableNode::createIcon(const boost::filesystem
 
 void FileTreeTableNode::populate()
 {
-  if (boost::filesystem::is_directory(path_)) {
-    std::set<boost::filesystem::path> paths;
-    boost::filesystem::directory_iterator end_itr;
+  if (std::filesystem::is_directory(path_)) {
+    std::set<std::filesystem::path> entries;
 
-    for (boost::filesystem::directory_iterator i(path_); i != end_itr; ++i)
+    for (auto const& dir_entry : std::filesystem::directory_iterator{path_})
       try {
-#ifdef NOTDEF
-          std::cerr << "path = " << i->path().filename() << std::endl << 
-              "\textension = " << boost::filesystem::extension(i->path().filename())
-               << std::endl;
-#endif
-          if ( (suffix_ == "") || 
-               boost::filesystem::extension(i->path().filename()) == suffix_ ) {
-            paths.insert(*i);
+          if ( (suffix_ == "") || dir_entry.path().extension() == suffix_ ) {
+            entries.insert(dir_entry.path());
           }
-      } catch (boost::filesystem::filesystem_error& e) {
+      } catch (std::filesystem::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
       }
 
-    for (std::set<boost::filesystem::path>::iterator i = paths.begin();
-      i != paths.end(); ++i)
+    for (auto entry : entries) {
       try {
-        addChildNode(std::make_unique<FileTreeTableNode>(*i));
-      } catch (boost::filesystem::filesystem_error& e) {
+        addChildNode(std::make_unique<FileTreeTableNode>(entry));
+      } catch (std::filesystem::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
       }
+    }
   }
 }
 
 bool FileTreeTableNode::expandable()
 {
   if (!populated()) {
-    return boost::filesystem::is_directory(path_);
+    return std::filesystem::is_directory(path_);
   } else
     return WTreeTableNode::expandable();
 }

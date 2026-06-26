@@ -12,7 +12,7 @@
 #include <Wt/WTreeNode.h>
 #include <Wt/WTreeTableNode.h>
 
-#include <boost/filesystem/path.hpp>
+#include <filesystem>
 namespace Wt {
 namespace Wc {
 
@@ -44,7 +44,7 @@ public:
    * \param path directory to display
    * \param suffix if non-empty, only display files with this suffix
    */
-    FileTreeTable(const boost::filesystem::path& path, const std::string &suffix="");
+    FileTreeTable(const std::filesystem::path& path, const std::string &suffix="");
 };
 }
 }

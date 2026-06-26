@@ -14,7 +14,7 @@ namespace Wt {
 namespace Wc {
 
 
-    FileTreeTable::FileTreeTable(const boost::filesystem::path& path, 
+    FileTreeTable::FileTreeTable(const std::filesystem::path& path, 
                                  const std::string &suffix)
   : WTreeTable()
 {
