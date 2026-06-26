@@ -4,24 +4,16 @@ project(wtclasses)
 enable_testing()
 
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 4)
+set(VERSION_MINOR 5)
 set(VERSION_PATCH 0)
 set(SONAME 12)
 
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
-# We need the deprecated binding boost::bind global placeholders
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS")
+set(CMAKE_CXX_STANDARD 20)
 
 set(local_include_dir ${PROJECT_BINARY_DIR}/include)
 set(local_headers_dir ${local_include_dir}/Wt/Wc)
-
-set(Boost_USE_STATIC_LIBS OFF CACHE BOOL "Use static boost libs")
-set(Boost_USE_MULTITHREADED ON CACHE BOOL "Use multithreaded boost libs")
-set(Boost_USE_STATIC_RUNTIME OFF CACHE BOOL
-    "Use boost libs linked with static C++ standard library")
-set(boost_libs filesystem thread system program_options)
-find_package(Boost 1.42.0 COMPONENTS ${boost_libs} REQUIRED)
 
 set(WT_LIB_SUFFIX "" CACHE STRING "Wt lib suffix (empty or 'd')")
 
@@ -32,14 +24,10 @@ set(DOC_SUBDIR ${datadir}/doc/libwtclasses CACHE PATH "Docs subdir")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/features/ubuntu-gcc.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/features/Features.cmake)
-INCLUDE_DIRECTORIES(
-${WT_DIR}/include
-${Boost_INCLUDE_DIR}
-)
-LINK_DIRECTORIES(
-${WT_DIR}/lib
-${Boost_LIBRARY_DIR}
-)
+INCLUDE_DIRECTORIES(${WT_DIR}/include)
+
+LINK_DIRECTORIES(${WT_DIR}/lib)
+
 get_property(propVal DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 message("INCLUDE_DIRECTORIES: ${propVal}")
 
@@ -62,4 +50,3 @@ option(BUILD_LOCALES_TEST "Build locales-test" ON)
 if(BUILD_LOCALES_TEST)
     subdirs(locales-test)
 endif()
-
