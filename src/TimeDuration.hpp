@@ -9,15 +9,9 @@
 #define WC_TIME_DURATION_HPP_
 
 #include <string>
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include <chrono>
 
 #include <Wt/WGlobal.h>
-
-namespace Wt {
-
-class WDateTime; // not declared n WGlobal of Wt 3.1.2
-
-namespace Wc {
 
 /** \defgroup time Time-related
 Classes and typedef simplifying time management.
@@ -26,7 +20,7 @@ Classes and typedef simplifying time management.
 /** Namespace for time duration constants and integration with WDateTime.
 \ingroup time
 */
-namespace td {
+namespace Wt::Wc::td {
 
 /** Time duration.
 
@@ -35,85 +29,35 @@ Wt::Dbo::sql_value_traits< Wc::td::TimeDuration, void >.
 
 \ingroup time
 */
-class TimeDuration : public boost::posix_time::time_duration {
+class TimeDuration : public std::chrono::duration<double, std::chrono::seconds::period>{
+
 public:
-    /** Base class */
-    typedef boost::posix_time::time_duration Base;
+	// Explicitly inherit all constructors from our base duration class. Most
+    // importantly, this gives us the TimeDuration(double seconds = 0.0) constructor.
+	using std::chrono::duration<double, std::chrono::seconds::period>::duration;
 
-    /** Default constructor (0 seconds) */
-    TimeDuration();
+    // Return a TimeDuration of zero seconds.
+    static constexpr TimeDuration zero() { return TimeDuration(0.0); };
 
-    /** Constructor */
-    TimeDuration(const boost::posix_time::time_duration& duration);
+    /**  Copy construction from TimeDuration */
+    TimeDuration(const TimeDuration& other) = default;
+
+    /**  Copy construction from duration<double, std::chrono::seconds::period> */
+    TimeDuration(const std::chrono::duration<double, std::chrono::seconds::period>& other) {
+        *this = other;
+    }
 
     /** Convert to string */
     operator std::string() const;
 
-    /** Addition operator */
-    TimeDuration operator +(const TimeDuration& b) const;
 
-    /** Subtraction operator */
-    TimeDuration operator -(const TimeDuration& b) const;
-
-    /** Unary minus operator */
-    TimeDuration operator -() const;
-
-    /** Divide the time duration */
-    TimeDuration operator /(const double& b) const;
-
-    /** Divide the time duration */
-    TimeDuration operator /(int b) const;
-
-    /** Multiply the time duration */
-    TimeDuration operator *(const double& b) const;
-
-    /** Multiply the time duration */
-    TimeDuration operator *(int b) const;
-
-    /** Divide the datetime */
-    double operator /(const TimeDuration& b) const;
-
-    /** Get the total number of minutes */
+    /** Return the duration in whole minutes */
     long total_minutes() const;
+
+    /** Return the duration in whole milliseconds */
+    long total_milliseconds() const;
+
 };
-
-/** Null time duration.
-Valid time duration, 0 seconds.
-
-\ingroup time
-*/
-const TimeDuration TD_NULL = boost::posix_time::seconds(0);
-
-/** One second.
-
-\ingroup time
-*/
-const TimeDuration SECOND = boost::posix_time::seconds(1);
-
-/** One minute.
-
-\ingroup time
-*/
-const TimeDuration MINUTE = SECOND * 60;
-
-/** One hour.
-
-\ingroup time
-*/
-const TimeDuration HOUR = MINUTE * 60;
-
-/** One day.
-
-\ingroup time
-*/
-const TimeDuration DAY = HOUR * 24;
-
-/** One week.
-
-\ingroup time
-*/
-const TimeDuration WEEK = DAY * 7;
-
 /** Return time duration between two datetimes.
 
 \ingroup time
@@ -148,19 +92,55 @@ WDateTime& operator -=(WDateTime& a, const TimeDuration& b);
 
 \ingroup time
 */
-TimeDuration operator *(const double& b, const TimeDuration& a);
-
 /** Return random time duration from open interval [min, max).
 
 \ingroup time
 */
 TimeDuration rand_range(const TimeDuration& start, const TimeDuration& stop);
 
-}
+TimeDuration operator *(const TimeDuration& a, const double& b);
 
-}
+TimeDuration operator *(const TimeDuration& a, const long& b);
 
-}
+/** Null time duration.
+Valid time duration, 0 seconds.
+
+\ingroup time
+*/
+const TimeDuration TD_NULL(0);
+
+/** One second.
+
+\ingroup time
+*/
+const TimeDuration SECOND(1);
+
+/** One minute.
+
+\ingroup time
+*/
+const TimeDuration MINUTE(60.0 * SECOND);
+
+/** One hour.
+
+\ingroup time
+*/
+const TimeDuration HOUR(60.0 * MINUTE);
+
+/** One day.
+
+\ingroup time
+*/
+const TimeDuration DAY(24.0 * HOUR);
+
+/** One week.
+
+\ingroup time
+*/
+const TimeDuration WEEK(7.0 * DAY);
+
+
+}   // namespace Wt::Wc::td
 
 #endif
 

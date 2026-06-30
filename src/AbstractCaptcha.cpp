@@ -6,7 +6,6 @@
  */
 
 #include <map>
-#include "boost-xtime.hpp"
 #include <mutex>
 #include <thread>
 
@@ -64,7 +63,7 @@ typedef std::map<std::string, WDateTime> Map;
 Map ip2last;
 int calls = 0;
 const int FILTER_EVERY = 1000;
-const td::TimeDuration INTERVAL = 3 * td::SECOND;
+const td::TimeDuration CHECK_INTERVAL(3 * td::SECOND);
 
 }
 
@@ -75,7 +74,7 @@ WString AbstractCaptcha::frequency_check() {
     const std::string ip = wApp->environment().clientAddress();
     Map::iterator it = ip2last.find(ip);
     if (it != ip2last.end()) {
-        if (it->second + INTERVAL > now()) {
+        if (it->second + CHECK_INTERVAL > now()) {
             result = tr("wc.captcha.Too_often");
         }
     }
@@ -85,7 +84,7 @@ WString AbstractCaptcha::frequency_check() {
         calls = 0;
         Map::iterator i = ip2last.begin();
         while (i != ip2last.end()) {
-            if (i->second  + INTERVAL < now()) {
+            if (i->second  + CHECK_INTERVAL < now()) {
                 ip2last.erase(i++);
             } else {
                 ++i;

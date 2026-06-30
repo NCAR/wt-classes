@@ -5,79 +5,57 @@
  * See the LICENSE file for terms of use.
  */
 
+#include <string>
+#include <sstream>
+#include <iomanip>
+#include <cmath>
 #include <Wt/WDateTime.h>
-#include <boost/date_time/posix_time/posix_time_io.hpp>
 
 #include "TimeDuration.hpp"
 #include "rand.hpp"
 
-namespace Wt {
+namespace Wt::Wc::td {
 
-namespace Wc {
-
-namespace td {
-
-namespace ptime = boost::posix_time;
-
-TimeDuration::TimeDuration():
-    ptime::time_duration(/* hours */ 0, /* minutes */ 0, /* seconds */ 0,
-                                 /* fractional_seconds */ 0)
-{ }
-
-TimeDuration::TimeDuration(const ptime::time_duration& duration):
-    ptime::time_duration(duration)
-{ }
 
 TimeDuration::operator std::string() const {
-    return to_simple_string(ptime::seconds(total_seconds()));
+		std::string sign = (count() < 0) ? "-" : "";
+		auto duration_secs = std::fabs(count());
+		std::ostringstream os;
+		long hours = duration_secs / 3600;
+		long minutes = long(duration_secs) % 3600 / 60;
+		long seconds = long(duration_secs) % 60;
+		auto subseconds = fmod(duration_secs, 1.0);
+
+		os << sign << std::setw(2) << std::setfill('0') << hours << ":"
+		   << std::setw(2) << std::setfill('0') << minutes << ":"
+		   << std::setw(2) << std::setfill('0') << seconds;
+		if (subseconds > 0) {
+			os << "." << std::setw(9) << std::setfill('0') << int(subseconds * 1e9);
+		}
+		return os.str();
 }
 
-TimeDuration TimeDuration::operator +(const TimeDuration& b) const {
-    return static_cast<const Base&>(*this) + static_cast<const Base&>(b);
-}
-
-TimeDuration TimeDuration::operator -(const TimeDuration& b) const {
-    return static_cast<const Base&>(*this) - static_cast<const Base&>(b);
-}
-
-TimeDuration TimeDuration::operator -() const {
-    return TimeDuration() - *this;
-}
-
-TimeDuration TimeDuration::operator /(const double& b) const {
-    return ptime::milliseconds(long(total_milliseconds() / b));
-}
-
-TimeDuration TimeDuration::operator /(int b) const {
-    return static_cast<const Base&>(*this) / b;
-}
-
-TimeDuration TimeDuration::operator *(const double& b) const {
-    return ptime::milliseconds(long(total_milliseconds() * b));
-}
-
-TimeDuration TimeDuration::operator *(int b) const {
-    return static_cast<const Base&>(*this) * b;
-}
-
-double TimeDuration::operator /(const TimeDuration& b) const {
-    return double(total_milliseconds()) / double(b.total_milliseconds());
-}
 
 long TimeDuration::total_minutes() const {
-    return total_seconds() / 60;
+    return count() / 60;
+}
+
+long TimeDuration::total_milliseconds() const {
+    return static_cast<long>(count() * 1000);
 }
 
 // TimeDuration operator -(const WDateTime& a, const WDateTime& b) {
 //     // @TODO NEEDS IMPLEMENTATION
 // }
-
+TimeDuration operator -(const WDateTime& a, const WDateTime& b) {
+    return TimeDuration(b.secsTo(a));
+}
 WDateTime operator +(const WDateTime& a, const TimeDuration& b) {
-    return(a.addMSecs(b.total_milliseconds()));
+    return(a.addSecs(b.count()));
 }
 
 WDateTime operator -(const WDateTime& a, const TimeDuration& b) {
-    return a + (-b);
+    return a - b;
 }
 
 WDateTime& operator +=(WDateTime& a, const TimeDuration& b) {
@@ -88,19 +66,18 @@ WDateTime& operator -=(WDateTime& a, const TimeDuration& b) {
     return a = a - b;
 }
 
-TimeDuration operator *(const double& b, const TimeDuration& a) {
-    return a * b;
-}
-
 TimeDuration rand_range(const TimeDuration& start, const TimeDuration& stop) {
-    unsigned int start_int = start.total_milliseconds();
-    unsigned int stop_int = stop.total_milliseconds();
-    return ptime::milliseconds(rr(start_int, stop_int));
+    unsigned int start_int = fabs(start.count() * 1000); // to integer milliseconds
+    unsigned int stop_int = fabs(stop.count() * 1000);   // to integer milliseconds
+    return TimeDuration(rr(start_int, stop_int) * 0.001); // milliseconds back to seconds
 }
 
-}
+TimeDuration operator *(const TimeDuration& a, const double& b) {
+	return b * a;
+};
 
-}
+TimeDuration operator *(const TimeDuration& a, const long& b) {
+	return b * a;
+};
 
-}
-
+}   // namespace Wt::Wc::td

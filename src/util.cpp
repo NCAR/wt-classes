@@ -7,34 +7,18 @@
 
 #include "config.hpp"
 
-#include "boost-xtime.hpp"
-
 #define USE_SERVER_POST (defined(WC_HAVE_SERVER_POST) && \
     defined(WC_HAVE_ENVIRONMENT_SERVER))
-
-#include <boost/version.hpp>
-#if BOOST_VERSION >= 104400
-#define BOOST_FILESYSTEM_VERSION 3
-#endif
 
 #include <sstream>
 #include <climits>
 #include <cstdio>
 #include <fstream>
-#include <boost/filesystem.hpp>
+#include <iomanip>
 #include <functional>
 #include <memory>
-#include <boost/algorithm/string/replace.hpp>
-#include <boost/lexical_cast.hpp>
-#if !USE_SERVER_POST
-#include <boost/thread.hpp>
-#include <boost/thread/mutex.hpp>
-#endif
-#if !USE_WIOSERVICE
-#include <boost/system/error_code.hpp>
-#include <boost/thread.hpp>
-#include <boost/asio.hpp>
-#endif
+#include <thread>
+#include <chrono>
 
 #ifdef WC_USE_WT_MD5
 #include <Wt/Utils.h>
@@ -102,11 +86,11 @@ private:
     BoolPtr ptr_;
 };
 
-boost::mutex do_func_mutex;
+static std::mutex do_func_mutex;
 
 static void do_func(std::function<void()> func, WApplication* app,
                     BoolPtr b) {
-    boost::mutex::scoped_lock do_func_lock(do_func_mutex);
+    std::scoped_lock do_func_lock(do_func_mutex);
     if (!*b && !app->hasQuit()) {
         WApplication::UpdateLock app_lock(app);
         if (!*b && !app->hasQuit()) {
@@ -138,17 +122,17 @@ std::function<void()> bound_post(std::function<void()> func) {
     }
 }
 
-typedef std::vector<boost::any> Anys;
+typedef std::vector<std::any> Anys;
 
 struct OneData {
     Anys anys;
-    boost::mutex mutex;
+    std::mutex mutex;
     bool allow_merge;
 };
 
 struct OneAnyFuncBinder {
     void operator()() {
-        boost::mutex& mutex = arg_ptr->mutex;
+        std::mutex& mutex = arg_ptr->mutex;
         Anys& anys = arg_ptr->anys;
         bool allow_merge = arg_ptr->allow_merge;
         if (allow_merge) {
@@ -161,7 +145,7 @@ struct OneAnyFuncBinder {
             }
         } else {
             mutex.lock();
-            boost::any arg = anys.back();
+            std::any arg = anys.back();
             anys.pop_back();
             mutex.unlock();
             func(arg);
@@ -172,8 +156,8 @@ struct OneAnyFuncBinder {
 };
 
 struct OneAnyFuncHolder {
-    void operator()(const boost::any& arg) {
-        boost::mutex& mutex = arg_ptr->mutex;
+    void operator()(const std::any& arg) {
+        std::mutex& mutex = arg_ptr->mutex;
         Anys& anys = arg_ptr->anys;
         bool allow_merge = arg_ptr->allow_merge;
         mutex.lock();
@@ -188,7 +172,7 @@ struct OneAnyFuncHolder {
     std::shared_ptr<OneData> arg_ptr;
 };
 
-OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge) {
+static OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge) {
     OneAnyFuncBinder binder;
     OneAnyFuncHolder holder;
     binder.func = func;
@@ -213,41 +197,10 @@ void updates_poster(WServer* server, WApplication* app) {
 #endif
 }
 
-std::string unique_filename() {
-    using namespace boost::filesystem;
-    using namespace std;
-#if BOOST_FILESYSTEM_VERSION == 3
-    const char* const model = "wt-classes-%%%%-%%%%-%%%%-%%%%";
-    return unique_path(temp_directory_path() / model).string();
-#else
-    string result;
-    for (int attempt = 0; attempt < 10; attempt++) {
-        char file_template[L_tmpnam];
-        string path = tmpnam(file_template);
-        ofstream file_out(path.c_str());
-        if (file_out.is_open()) {
-            int secret = rr();
-            file_out << secret << endl;
-            file_out.close();
-            if (exists(path)) {
-                ifstream file_in(path.c_str());
-                if (file_in.is_open()) {
-                    int test;
-                    file_in >> test;
-                    file_in.close();
-                    file_out.open(path.c_str(), ios::out | ios::trunc);
-                    file_out.close();
-                    if (test == secret) {
-                        result = path;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    return result;
-#endif
-}
+std::string unique_filename()
+{
+    return std::tmpnam(nullptr);
+};
 
 std::string config_value(const std::string& name, const std::string& def) {
     std::string value = def;
@@ -346,37 +299,6 @@ std::string bool_to_string(bool value) {
 #define USE_WIOSERVICE (defined(WC_HAVE_WIOSERVICE) && \
         defined(WC_HAVE_ENVIRONMENT_SERVER))
 
-#if !USE_WIOSERVICE
-typedef boost::asio::deadline_timer Timer;
-typedef std::shared_ptr<Timer> TimerPtr;
-
-struct WcIoService {
-    WcIoService():
-        work(new boost::asio::io_service::work(io)) {
-        for (int i = 0; i < boost::thread::hardware_concurrency(); i++) {
-            gr.create_thread([this]() { io.run(); });
-        }
-    }
-
-    ~WcIoService() {
-        delete work;
-        io.stop();
-    }
-
-    boost::asio::io_service io;
-    boost::asio::io_service::work* work;
-    boost::thread_group gr;
-} wc_io;
-
-static void handle_timeout(TimerPtr /* timer */,
-                           const std::function<void()>& func,
-                           const boost::system::error_code& e) {
-    if (!e) {
-        func();
-    }
-}
-#endif
-
 void schedule_action(const td::TimeDuration& wait,
                      const std::function<void()>& func) {
 #if USE_WIOSERVICE
@@ -385,12 +307,12 @@ void schedule_action(const td::TimeDuration& wait,
         ms = INT_MAX;
     }
     WIOService& io = WServer::instance()->ioService();
-    io.schedule(ms, func);
+    io.schedule(std::chrono::milliseconds(ms), func);
 #else
-    TimerPtr timer = std::make_shared<Wt::Wc::Timer>(wc_io.io, wait);
-    timer->async_wait([timer, func](const boost::system::error_code& e) {
-        handle_timeout(timer, func, e);
-    });
+    std::thread([wait, func]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(wait.total_milliseconds()));
+        func();
+    }).detach();
 #endif
 }
 
@@ -417,7 +339,7 @@ WString value_text(const WFormWidget* form_widget) {
     } else if (isinstance<WAbstractToggleButton>(form_widget)) {
         return DOWNCAST<const WAbstractToggleButton*>(form_widget)->text();
     } else if (isinstance<WSlider>(form_widget)) {
-        return TO_S(reinterpret_cast<const WSlider*>(form_widget)->value());
+        return std::to_string(reinterpret_cast<const WSlider*>(form_widget)->value());
         // NOTE: WSlider used to be WCompositeWidget's descendant
         // In that case reinterpret_cast newer happens, since isinstance check
     } else {
@@ -502,8 +424,8 @@ void scroll_to_last(WTableView* view) {
 
 int str2int(const std::string& str, int bad) {
     try {
-        return boost::lexical_cast<int>(str);
-    } catch (boost::bad_lexical_cast&) {
+        return std::stoi(str);
+    } catch (std::invalid_argument&) {
         return bad;
     }
 }
@@ -592,7 +514,7 @@ std::string url_scheme(WApplication* app) {
 
 bool stop_ioservice(WServer& server) {
 #ifdef WC_HAVE_WIOSERVICE
-    server.ioService().boost::asio::io_service::stop();
+    server.ioService().stop();
 #endif
     return 0;
 }

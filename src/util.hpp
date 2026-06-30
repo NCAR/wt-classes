@@ -8,10 +8,8 @@
 #ifndef WC_UTIL_HPP_
 #define WC_UTIL_HPP_
 
-#include <boost/cast.hpp>
 #include <functional>
-#include <boost/lexical_cast.hpp>
-#include <boost/any.hpp>
+#include <any>
 
 #include <Wt/WGlobal.h>
 #include <Wt/WApplication.h> // for ApplicationCreator
@@ -52,19 +50,19 @@ bool isinstance(const S* object) {
 \deprecated Use DOWNCAST
 \ingroup util
 */
-#define downcast boost::polymorphic_downcast
+#define downcast dynamic_cast
 
 /** Downcasting operator.
 
 \ingroup util
 */
-#define DOWNCAST boost::polymorphic_downcast
+#define DOWNCAST dynamic_cast
 
-/** Ugly macro converting any type to std::string using boost::lexical_cast.
+/** Ugly macro converting any type to std::string using std::lexical_cast.
 
 \ingroup util
 */
-#define TO_S(x) boost::lexical_cast<std::string>(x)
+//#define TO_S(x) to_string(x)
 
 /** Return the same function, but being called afterwards in this application.
 When returned function is called, it looks as if original function were called
@@ -88,12 +86,12 @@ std::function<void()> bound_post(std::function<void()> func);
 
 \ingroup util
 */
-typedef std::function<void(const boost::any&)> OneAnyFunc;
+typedef std::function<void(const std::any&)> OneAnyFunc;
 
 /** Return the same function, but being called afterwards.
 \param func The function, called afterwards as if it is called in this app.
-    When you call returned functor with boost::any, this will result
-    in calling \p func with this boost::any.
+    When you call returned functor with std::any, this will result
+    in calling \p func with this std::any.
 \param allow_merge Whether sequential calls of returned functor
     are allowed to be merged and executed through single post.
     This is optimization of number of function posts (call of function,
@@ -103,7 +101,7 @@ This function is like bound_post(), but it allows to bind one argument.
 
 \ingroup util
 */
-OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge = true);
+static OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge = true);
 
 /** Call triggerUpdate() in current WApplication, if updates are enabled.
 
@@ -125,12 +123,6 @@ If server.post() is available, it is used, else bound_post() is used.
 void updates_poster(WServer* server, WApplication* app);
 
 /** Return unique temp file name.
-Boost.Filesystem's unique_path is used, if present.
-
-Otherwise this function call tmpnam() from C++ Standard library,
-checking the result to be writable.
-If this fails 10 times, empty string is returned.
-
 \ingroup util
 */
 std::string unique_filename();
@@ -194,7 +186,7 @@ std::string bool_to_string(bool value);
     If sizeof(int) is 4, max duration is about 24.8 days.
 
 This function uses WIOService::schedule(), if available,
-else boost::asio::io_service with WApplication::UpdateLock is used.
+else std::asio::io_service with WApplication::UpdateLock is used.
 \ingroup util
 */
 void schedule_action(const td::TimeDuration& wait,
