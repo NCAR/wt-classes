@@ -5,14 +5,16 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <boost/make_shared.hpp>
+#include <memory>
 
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
-#include <Wt/WWebWidget>
-#include <Wt/WResource>
-#include <Wt/WImage>
-#include <Wt/WText>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
+#include <Wt/WWebWidget.h>
+#include <Wt/WResource.h>
+#include <Wt/WImage.h>
+#include <Wt/WLink.h>
+#include <Wt/WText.h>
+#include <Wt/WMemoryResource.h>
 
 #include "AdBlockDetector.hpp"
 #include "rand.hpp"
@@ -25,11 +27,6 @@ class ReporterResource;
 }
 }
 
-// FIXME nasty public morozov
-#define private friend class Wt::Wc::ReporterResource; private
-#include <Wt/WMemoryResource>
-#undef private
-// FIXME http://redmine.emweb.be/issues/1210
 
 namespace Wt {
 
@@ -37,12 +34,12 @@ namespace Wc {
 
 struct DefaultLists {
     DefaultLists() {
-        banner_libs = boost::make_shared<AdBlockDetector::Libs>();
+        banner_libs = std::make_shared<AdBlockDetector::Libs>();
         b("https://js.adscale.de/getads.js", "adscale");
-        regular_libs = boost::make_shared<AdBlockDetector::Libs>();
+        regular_libs = std::make_shared<AdBlockDetector::Libs>();
         r("https://cdnjs.cloudflare.com/ajax/libs/underscore.js/"
           "1.3.1/underscore-min.js", "_");
-        image_paths = boost::make_shared<AdBlockDetector::Strings>();
+        image_paths = std::make_shared<AdBlockDetector::Strings>();
         i("/ad/side_");
         i("/adseo.");
         i("/adzone_");
@@ -53,7 +50,7 @@ struct DefaultLists {
         i("/top_ads/ad");
         i("_adwrap.");
         i("/160x600.");
-        html_ids = boost::make_shared<AdBlockDetector::Strings>();
+        html_ids = std::make_shared<AdBlockDetector::Strings>();
         h("ad-sponsors");
         h("adBlock125");
         h("advertising-banner");
@@ -96,18 +93,14 @@ static const unsigned char gif1x1[] = {
 
 class ReporterResource : public WMemoryResource {
 public:
-    ReporterResource(bool* flag, WObject* parent):
-        WMemoryResource("image/gif", parent),
+    ReporterResource(bool* flag):
+        WMemoryResource("image/gif"),
         flag_(flag) {
         setData(gif1x1, 43);
     }
 
-    ~ReporterResource() {
-        beingDeleted();
-    }
-
 protected:
-    void handleRequest(const Http::Request& request, Http::Response& response) {
+    void handleRequest(const Http::Request& request, Http::Response& response) override {
         *flag_ = true;
         WMemoryResource::handleRequest(request, response);
     }
@@ -116,8 +109,7 @@ private:
     bool* flag_;
 };
 
-AdBlockDetector::AdBlockDetector(WContainerWidget* parent, bool call_start):
-    WContainerWidget(parent),
+AdBlockDetector::AdBlockDetector(bool call_start):
     signal_(this, "abdetector"),
     local_banner_image_(false),
     local_regular_image_(false),
@@ -132,8 +124,8 @@ AdBlockDetector::AdBlockDetector(WContainerWidget* parent, bool call_start):
     regular_libs_(default_lists.regular_libs),
     image_paths_(default_lists.image_paths),
     html_ids_(default_lists.html_ids),
-    banner_image_(0),
-    regular_image_(0) {
+    banner_image_(nullptr),
+    regular_image_(nullptr) {
     if (call_start) {
         start();
     }
@@ -146,7 +138,7 @@ bool AdBlockDetector::has_adblock(bool true_if_maybe) const {
         adblock |= local_regular_image_ && !local_banner_image_;
         maybe |= !local_banner_image_;
     }
-    if (wApp->environment().ajax()) {
+    if (WApplication::instance()->environment().ajax()) {
         if (!skip_remote_js_) {
             adblock |= remote_regular_js_ && !remote_banner_js_;
             maybe |= !remote_banner_js_;
@@ -161,16 +153,14 @@ bool AdBlockDetector::has_adblock(bool true_if_maybe) const {
 
 void AdBlockDetector::start() {
     if (!skip_local_image_) {
-        banner_image_ = new ReporterResource(&local_banner_image_, this);
-        banner_image_->setInternalPath(image_path(/* banner */ true));
-        new WImage(banner_image_, /* alt text */ "", this);
-        regular_image_ = new ReporterResource(&local_regular_image_, this);
-        regular_image_->setInternalPath(image_path(/* banner */ false));
-        new WImage(regular_image_, /* alt text */ "", this);
+        banner_image_ = std::make_shared<ReporterResource>(&local_banner_image_);
+        addWidget(std::make_unique<WImage>(Wt::WLink(banner_image_), /* alt text */ ""));
+        regular_image_ = std::make_shared<ReporterResource>(&local_regular_image_);
+        addWidget(std::make_unique<WImage>(Wt::WLink(regular_image_), /* alt text */ ""));
     }
-    if (wApp->environment().ajax()) {
+    if (WApplication::instance()->environment().ajax()) {
         if (!skip_remote_js_ || !skip_ids_hidden_) {
-            signal_.connect(this, &AdBlockDetector::signal_handler);
+            signal_.connect([this](std::string name) { signal_handler(name); });
         }
         if (!skip_remote_js_) {
             check_remote_js(true);
@@ -232,26 +222,28 @@ void AdBlockDetector::check_remote_js(bool banner) {
     std::string name = "remote_";
     name += (banner ? "banner" : "regular");
     name += "_js";
+    std::string js_name_str = WWebWidget::jsStringLiteral(name);
+
     // FIXME loadScript() is undocumented Wt JavaScript function
     doJavaScript("loadScript('" + js_url + "', function() {"
                  "if (typeof " + js_symbol + " != 'undefined') {" +
-                 signal_.createCall(WWebWidget::jsStringLiteral(name)) +
+                 signal_.createCall(std::initializer_list<std::string>{js_name_str}) +
                  "}"
                  "js_symbol = undefined;"
                  "});");
 }
 
 void AdBlockDetector::check_hidden(bool banner) {
-    WText* text = new WText(" ", this);
+    auto text = addWidget(std::make_unique<WText>(" "));
     text->setId(html_id(banner));
     std::string name = banner ? "banner" : "regular";
     name += "_ids_hidden";
+    std::string js_name_str = WWebWidget::jsStringLiteral(name);
     doJavaScript("if ($(" + text->jsRef() + ").css('display') == 'none') {" +
-                 signal_.createCall(WWebWidget::jsStringLiteral(name)) +
+                 signal_.createCall(std::initializer_list<std::string>{js_name_str}) +
                  "}");
 }
 
 }
 
 }
-

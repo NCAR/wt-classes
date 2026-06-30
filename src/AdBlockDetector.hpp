@@ -10,11 +10,11 @@
 
 #include <vector>
 #include <utility>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
-#include <Wt/WGlobal>
-#include <Wt/WContainerWidget>
-#include <Wt/WJavaScript>
+#include <Wt/WGlobal.h>
+#include <Wt/WContainerWidget.h>
+#include <Wt/WJavaScript.h>
 
 namespace Wt {
 
@@ -50,22 +50,21 @@ public:
     typedef std::vector<UrlAndSymbol> Libs;
 
     /** A shared pointer to Libs */
-    typedef boost::shared_ptr<Libs> LibsPtr;
+    typedef std::shared_ptr<Libs> LibsPtr;
 
     /** A collection of strings */
     typedef std::vector<std::string> Strings;
 
     /** A shared pointer to Strings */
-    typedef boost::shared_ptr<Strings> StringsPtr;
+    typedef std::shared_ptr<Strings> StringsPtr;
 
     /** Constructor.
-    \param parent Parent widget.
     \param call_start If the widgets should be automatically start().
         If you want to change some parameters (i.e., set_banner_libs(),
         skip_ids_hidden()), this argument must be set to false,
         and start() must be called explicitly afterwards.
     */
-    AdBlockDetector(WContainerWidget* parent = 0, bool call_start = true);
+    AdBlockDetector(bool call_start = true);
 
     /** Get if the client uses ads blocking sowfware.
     \param true_if_maybe Consider ads blocking sowfware usage if not sure.
@@ -240,8 +239,8 @@ private:
     LibsPtr regular_libs_;
     StringsPtr image_paths_;
     StringsPtr html_ids_;
-    WResource* banner_image_;
-    WResource* regular_image_;
+    std::shared_ptr<Wt::WResource> banner_image_;
+    std::shared_ptr<Wt::WResource> regular_image_;
     // TODO: hidden ids
 
     void signal_handler(std::string name);
@@ -255,4 +254,3 @@ private:
 }
 
 #endif
-
