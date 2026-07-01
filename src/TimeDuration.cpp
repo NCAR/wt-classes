@@ -44,6 +44,10 @@ long TimeDuration::total_milliseconds() const {
     return static_cast<long>(count() * 1000);
 }
 
+long TimeDuration::total_nanoseconds() const {
+    return static_cast<long>(count() * 1e9);
+}
+
 // TimeDuration operator -(const WDateTime& a, const WDateTime& b) {
 //     // @TODO NEEDS IMPLEMENTATION
 // }

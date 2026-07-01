@@ -57,6 +57,9 @@ public:
     /** Return the duration in whole milliseconds */
     long total_milliseconds() const;
 
+    /** Return the duration in whole nanoseconds */
+    long total_nanoseconds() const;
+
 };
 /** Return time duration between two datetimes.
 
