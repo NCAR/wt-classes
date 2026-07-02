@@ -37,7 +37,11 @@ TimeDuration::operator std::string() const {
 
 
 long TimeDuration::total_minutes() const {
-    return count() / 60;
+    return total_seconds() / 60;
+}
+
+long TimeDuration::total_seconds() const {
+    return static_cast<long>(count());
 }
 
 long TimeDuration::total_milliseconds() const {

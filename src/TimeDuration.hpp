@@ -54,6 +54,9 @@ public:
     /** Return the duration in whole minutes */
     long total_minutes() const;
 
+    /** Return the duration in whole seconds */
+    long total_seconds() const;
+
     /** Return the duration in whole milliseconds */
     long total_milliseconds() const;
 
