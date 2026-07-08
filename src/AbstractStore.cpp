@@ -11,8 +11,8 @@ namespace Wt {
 
 namespace Wc {
 
-AbstractStore::AbstractStore(WContainerWidget* parent):
-    WContainerWidget(parent),
+AbstractStore::AbstractStore():
+    WContainerWidget(),
     value_(this, "value")
 { }
 
@@ -36,4 +36,3 @@ void AbstractStore::get_value_of(const std::string& key,
 }
 
 }
-

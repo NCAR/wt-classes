@@ -10,15 +10,17 @@
 
 #include <ostream>
 
-#include <Wt/WPainterPath>
-#include <Wt/WTransform>
-#include <Wt/WPointF>
+#include <Wt/WPainterPath.h>
+#include <Wt/WTransform.h>
+#include <Wt/WPointF.h>
 
 #include "global.hpp"
 
 namespace Wt {
 
 namespace Wc {
+
+struct Matrix3x3;
 
 /** Row for Matrix3x3.
 
@@ -172,7 +174,7 @@ struct Matrix3x3 {
     Matrix3x3 operator*(const Matrix3x3& other) const;
 
     /** Convert to WTransform matrix */
-    operator WTransform() const;
+    Wt::WTransform toWTransform() const;
 
     /** print WTransform */
     static std::ostream& print(std::ostream& o, const WTransform& matrix);
@@ -186,4 +188,3 @@ std::ostream& operator<<(std::ostream& o, const Matrix3x3& matrix);
 }
 
 #endif
-

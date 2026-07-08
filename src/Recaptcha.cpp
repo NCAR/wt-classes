@@ -7,28 +7,27 @@
 
 #include "config.hpp"
 #include "global.hpp"
-
-#include <boost/algorithm/string/predicate.hpp>
+#include <memory>
 
 #include <Wt/WConfig.h>
-#include <Wt/WServer>
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
-#include <Wt/WContainerWidget>
-#include <Wt/WTemplate>
-#include <Wt/WLineEdit>
-#include <Wt/WTextArea>
-#include <Wt/WPushButton>
-#include <Wt/WText>
-#include <Wt/Http/Client>
-#include <Wt/Http/Message>
+#include <Wt/WServer.h>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
+#include <Wt/WContainerWidget.h>
+#include <Wt/WTemplate.h>
+#include <Wt/WLineEdit.h>
+#include <Wt/WTextArea.h>
+#include <Wt/WPushButton.h>
+#include <Wt/WText.h>
+#include <Wt/Http/Client.h>
+#include <Wt/Http/Message.h>
 
 #ifndef WC_HAVE_WCOMPOSITEWIDGET_IMPLEMENTATION
 // FIXME nasty public morozov
 #define private friend class Wt::Wc::Recaptcha; private
-#include <Wt/WCompositeWidget>
+#include <Wt/WCompositeWidget.h>
 #undef private
-#define implementation() Wt::WCompositeWidget::impl_
+#define implementation() Wt::WCompositeWidget::impl_.get()
 #endif // WC_HAVE_WCOMPOSITEWIDGET_IMPLEMENTATION
 
 #include "Recaptcha.hpp"
@@ -39,20 +38,19 @@ namespace Wt {
 namespace Wc {
 
 Recaptcha::Recaptcha(const std::string& public_key,
-                     const std::string& private_key,
-                     WContainerWidget* parent):
-    AbstractCaptcha(parent),
+                     const std::string& private_key):
+    AbstractCaptcha(),
     buttons_enabled_(true),
     public_key_(public_key),
     private_key_(private_key),
     input_(0),
     response_field_(0),
     challenge_field_(0) {
-    wApp->enableUpdates();
-    wApp->require("https://www.google.com/recaptcha/api/js/recaptcha_ajax.js",
+    Wt::WApplication::instance()->enableUpdates();
+    Wt::WApplication::instance()->require("https://www.google.com/recaptcha/api/js/recaptcha_ajax.js",
                   "Recaptcha");
     http_ = new Http::Client(this);
-    http_->done().connect(this, &Recaptcha::http_done);
+    http_->done().connect(this, [this](std::error_code e, const Wt::Http::Message& msg) { http_done(e, msg); });
     update_impl();
 }
 
@@ -81,16 +79,16 @@ void Recaptcha::set_input(WFormWidget* input) {
 
 void Recaptcha::update_impl() {
     if (!implementation()) {
-        setImplementation(new WContainerWidget());
+        setImplementation(std::make_unique<WContainerWidget>());
     }
     get_impl()->clear();
-    WText* title = new WText("reCAPTCHA", get_impl());
+    auto title = get_impl()->addWidget(std::make_unique<WText>("reCAPTCHA"));
     title->addStyleClass("wc_recaptcha_title");
     if (js()) {
-        WContainerWidget* image = new WContainerWidget(get_impl());
+        auto image = get_impl()->addWidget(std::make_unique<WContainerWidget>());
         image->setId("recaptcha_image");
-        response_field_ = input_ ? input_ : new WLineEdit(get_impl());
-        challenge_field_ = new WLineEdit(get_impl());
+        response_field_ = input_ ? input_ : get_impl()->addWidget(std::make_unique<WLineEdit>());
+        challenge_field_ = get_impl()->addWidget(std::make_unique<WLineEdit>());
         // not challenge_field_->hide() to get its .text()
         doJavaScript("$(" + challenge_field_->jsRef() + ").hide();");
         response_field_->setId("recaptcha_response_field");
@@ -106,20 +104,20 @@ void Recaptcha::update_impl() {
                      ".val(Recaptcha.get_challenge());"
                      "}, 200));");
     } else {
-        WTemplate* iframe = new WTemplate(get_impl());
+        auto iframe = get_impl()->addWidget(std::make_unique<WTemplate>());
         iframe->setTemplateText("<iframe src='https://www.google.com/recaptcha/"
                                 "api/noscript?k=" + public_key_ +
                                 "' height='300' width='500' frameborder='0'>"
-                                "</iframe>", XHTMLUnsafeText);
+                                "</iframe>", Wt::TextFormat::XHTMLUnsafe);
         if (input_) {
             challenge_field_ = input_;
         } else {
-            WTextArea* ta = new WTextArea(get_impl());
+            auto ta = get_impl()->addWidget(std::make_unique<WTextArea>());
             ta->setColumns(40);
             ta->setRows(3);
             challenge_field_ = ta;
         }
-        response_field_ = new WLineEdit("manual_challenge", get_impl());
+        response_field_ = get_impl()->addWidget(std::make_unique<WLineEdit>("manual_challenge"));
         response_field_->hide();
     }
 }
@@ -127,7 +125,7 @@ void Recaptcha::update_impl() {
 void Recaptcha::check_impl() {
     std::string challenge = value_text(challenge_field_).toUTF8();
     std::string response = value_text(response_field_).toUTF8();
-    const std::string& remoteip = wApp->environment().clientAddress();
+    const std::string& remoteip = Wt::WApplication::instance()->environment().clientAddress();
     Http::Message m;
     m.setHeader("Content-Type", "application/x-www-form-urlencoded");
     m.addBodyText("privatekey=" + private_key_ + "&");
@@ -145,41 +143,40 @@ void Recaptcha::check_impl() {
 }
 
 bool Recaptcha::js() const {
-    return wApp->environment().javaScript();
+    return Wt::WApplication::instance()->environment().javaScript();
 }
 
 WContainerWidget* Recaptcha::get_impl() {
     return DOWNCAST<WContainerWidget*>(implementation());
 }
 
-void Recaptcha::http_done(const boost::system::error_code& e,
+void Recaptcha::http_done(const std::error_code& e,
                           const Http::Message& response) {
     if (e) {
         mistake(tr("wc.captcha.Internal_error"));
-    } else if (boost::starts_with(response.body(), "true")) {
+    } else if (response.body().find("true") == 0) {
         solve();
-    } else if (boost::contains(response.body(), "incorrect-captcha-sol")) {
+    } else if (response.body().find("incorrect-captcha-sol") != std::string::npos) {
         mistake(tr("wc.captcha.Wrong_response"));
     } else {
         mistake(tr("wc.captcha.Internal_error"));
     }
-    updates_poster(WServer::instance(), wApp);
+    updates_poster(Wt::WServer::instance(), Wt::WApplication::instance());
 }
 
 void Recaptcha::add_buttons() {
-    WPushButton* u = new WPushButton(tr("wc.common.Update"), get_impl());
+    auto u = get_impl()->addWidget(std::make_unique<WPushButton>(tr("wc.common.Update")));
     u->clicked().connect(this, &AbstractCaptcha::update);
-    WPushButton* get_image = new WPushButton(get_impl());
-    get_image->addStyleClass("recaptcha_only_if_audio");
-    get_image->setText(tr("wc.captcha.Get_image"));
-    get_image->clicked().connect(this, &Recaptcha::get_image);
-    WPushButton* get_audio = new WPushButton(get_impl());
-    get_audio->addStyleClass("recaptcha_only_if_image");
-    get_audio->setText(tr("wc.captcha.Get_audio"));
-    get_audio->clicked().connect(this, &Recaptcha::get_audio);
+    auto get_image_btn = get_impl()->addWidget(std::make_unique<WPushButton>());
+    get_image_btn->addStyleClass("recaptcha_only_if_audio");
+    get_image_btn->setText(tr("wc.captcha.Get_image"));
+    get_image_btn->clicked().connect(this, &Recaptcha::get_image);
+    auto get_audio_btn = get_impl()->addWidget(std::make_unique<WPushButton>());
+    get_audio_btn->addStyleClass("recaptcha_only_if_image");
+    get_audio_btn->setText(tr("wc.captcha.Get_audio"));
+    get_audio_btn->clicked().connect(this, &Recaptcha::get_audio);
 }
 
 }
 
 }
-

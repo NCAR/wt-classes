@@ -8,8 +8,8 @@
 #ifndef WC_GRAVATAR_IMAGE_HPP_
 #define WC_GRAVATAR_IMAGE_HPP_
 
-#include <Wt/WGlobal>
-#include <Wt/WImage>
+#include <Wt/WGlobal.h>
+#include <Wt/WImage.h>
 
 #include "config.hpp"
 
@@ -72,9 +72,8 @@ public:
 
     /** Constructor.
     \param email  E-mail address of the user (may be empty or incorrect).
-    \param parent Parent widget.
     */
-    GravatarImage(const std::string& email, WContainerWidget* parent = 0);
+    GravatarImage(const std::string& email);
 
     /** Set e-mail address of the user */
     void set_email(const std::string& email);
@@ -141,4 +140,3 @@ private:
 }
 
 #endif
-

@@ -78,4 +78,3 @@ std::string good_password();
 }
 
 #endif
-

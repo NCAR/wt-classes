@@ -5,7 +5,7 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <Wt/WContainerWidget>
+#include <Wt/WContainerWidget.h>
 
 #include "ConstrainedSpinBox.hpp"
 #include "util.hpp"
@@ -16,8 +16,8 @@ namespace Wt {
 namespace Wc {
 
 #ifdef WC_HAVE_WSPINBOX
-ConstrainedSpinBox::ConstrainedSpinBox(WContainerWidget* parent) :
-    WSpinBox(parent)
+ConstrainedSpinBox::ConstrainedSpinBox() :
+    WSpinBox()
 { }
 
 int ConstrainedSpinBox::corrected_value() const {
@@ -26,8 +26,8 @@ int ConstrainedSpinBox::corrected_value() const {
 #endif
 
 #ifdef WC_HAVE_WDOUBLESPINBOX
-ConstrainedDoubleSpinBox::ConstrainedDoubleSpinBox(WContainerWidget* parent) :
-    WDoubleSpinBox(parent)
+ConstrainedDoubleSpinBox::ConstrainedDoubleSpinBox() :
+    WDoubleSpinBox()
 { }
 
 double ConstrainedDoubleSpinBox::corrected_value() const {
@@ -38,4 +38,3 @@ double ConstrainedDoubleSpinBox::corrected_value() const {
 }
 
 }
-

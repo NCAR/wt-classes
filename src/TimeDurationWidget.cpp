@@ -5,12 +5,13 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <boost/lexical_cast.hpp>
+#include <string>
+#include <memory>
 
-#include <Wt/WContainerWidget>
-#include <Wt/WLineEdit>
-#include <Wt/WDoubleValidator>
-#include <Wt/WComboBox>
+#include <Wt/WContainerWidget.h>
+#include <Wt/WLineEdit.h>
+#include <Wt/WDoubleValidator.h>
+#include <Wt/WComboBox.h>
 
 #include "TimeDurationWidget.hpp"
 #include "ConstrainedSpinBox.hpp"
@@ -33,18 +34,18 @@ public:
         WContainerWidget(), min_(min), max_(max), unit_(SECOND) {
         setInline(true);
 #if defined(WC_HAVE_WDOUBLESPINBOX)
-        spin_box_ = new ConstrainedDoubleSpinBox(this);
+        spin_box_ = addWidget(std::make_unique<ConstrainedDoubleSpinBox>());
 #elif defined(WC_HAVE_WSPINBOX)
-        spin_box_ = new ConstrainedSpinBox(this);
+        spin_box_ = addWidget(std::make_unique<ConstrainedSpinBox>());
 #else
-        spin_box_ = new WLineEdit(this);
-        spin_box_->setValidator(new WDoubleValidator(spin_box_));
+        spin_box_ = addWidget(std::make_unique<WLineEdit>());
+        spin_box_->setValidator(std::make_shared<WDoubleValidator>());
         // set parent of WDoubleValidator to prevent memory leak
         // see http://redmine.emweb.be/boards/2/topics/544
 #endif
         set_raw_value(min.total_seconds(), value.total_seconds(),
                       max.total_seconds());
-        combo_box_ = new WComboBox(this);
+        combo_box_ = addWidget(std::make_unique<WComboBox>());
         combo_box_->addItem(tr("wc.time.seconds"));
         combo_box_->addItem(tr("wc.time.minutes"));
         combo_box_->addItem(tr("wc.time.hours"));
@@ -109,8 +110,10 @@ private:
         spin_box_->setRange(min, max);
         spin_box_->setValue(value);
 #else
-        spin_box_->setText(TO_S(value));
-        DOWNCAST<WDoubleValidator*>(spin_box_->validator())->setRange(min, max);
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "%g", value);
+        spin_box_->setText(buf);
+        std::dynamic_pointer_cast<WDoubleValidator>(spin_box_->validator())->setRange(min, max);
 #endif
     }
 
@@ -119,7 +122,7 @@ private:
         return spin_box_->value();
 #else
         try {
-            return boost::lexical_cast<double>(spin_box_->text().toUTF8());
+            return std::stod(spin_box_->text().toUTF8());
         } catch (...) {
             return 0;
         }
@@ -129,38 +132,43 @@ private:
 
 TimeDurationWidget::TimeDurationWidget(const TimeDuration& min,
                                        const TimeDuration& value,
-                                       const TimeDuration& max,
-                                       WContainerWidget* parent) :
-    WCompositeWidget(parent) {
-    impl_ = new TimeDurationWidgetImpl(min, value, max);
-    setImplementation(impl_);
+                                       const TimeDuration& max) :
+    WCompositeWidget() {
+    setImplementation(std::make_unique<TimeDurationWidgetImpl>(min, value, max));
+}
+
+TimeDurationWidgetImpl* TimeDurationWidget::impl() {
+    return dynamic_cast<TimeDurationWidgetImpl*>(implementation());
+}
+
+const TimeDurationWidgetImpl* TimeDurationWidget::impl() const {
+    return dynamic_cast<const TimeDurationWidgetImpl*>(const_cast<TimeDurationWidget*>(this)->implementation());
 }
 
 TimeDuration TimeDurationWidget::value() const {
-    return impl_->value();
+    return impl()->value();
 }
 
 TimeDuration TimeDurationWidget::corrected_value() const {
-    return impl_->corrected_value();
+    return impl()->corrected_value();
 }
 
 TimeDuration TimeDurationWidget::minimum() const {
-    return impl_->minimum();
+    return impl()->minimum();
 }
 
 TimeDuration TimeDurationWidget::maximum() const {
-    return impl_->maximum();
+    return impl()->maximum();
 }
 
 TimeDuration TimeDurationWidget::unit() const {
-    return impl_->unit();
+    return impl()->unit();
 }
 
 WFormWidget* TimeDurationWidget::form_widget() {
-    return impl_->form_widget();
+    return impl()->form_widget();
 }
 
 }
 
 }
-

@@ -6,10 +6,9 @@
  */
 
 #include <algorithm>
-#include <boost/assert.hpp>
-#include <boost/foreach.hpp>
+#include <cassert>
 
-#include <Wt/WApplication>
+#include <Wt/WApplication.h>
 
 #include "GlobalLocalizedStrings.hpp"
 #include "util.hpp"
@@ -21,36 +20,36 @@ namespace Wc {
 class GlobalLocalizedStringsPtr : public WLocalizedStrings {
 public:
     GlobalLocalizedStringsPtr(GlobalLocalizedStrings* data):
-        data_(data), bundle_(0) {
+        data_(data), bundle_(nullptr) {
         update_bundle_ptr();
     }
 
-    ~GlobalLocalizedStringsPtr()
+    ~GlobalLocalizedStringsPtr() override
     { }
 
-    bool resolveKey(const std::string& key, std::string& result) {
+    Wt::LocalizedString resolveKey(const Wt::WLocale& locale, const std::string& key) override {
         WMessageResourceBundle* default_bundle = data_->default_bundle_;
-        BOOST_ASSERT(default_bundle);
-        if (bundle_ && bundle_->resolveKey(key, result)) {
-            return true;
-        } else if (default_bundle->resolveKey(key, result)) {
-            return true;
-        } else {
-            return false;
+        assert(default_bundle);
+        if (bundle_) {
+            Wt::LocalizedString result = bundle_->resolveKey(locale, key);
+            if (result.success) {
+                return result;
+            }
         }
+        return default_bundle->resolveKey(locale, key);
     }
 
-    bool resolvePluralKey(const std::string& key, std::string& result,
-                          ::uint64_t amount) {
+    Wt::LocalizedString resolvePluralKey(const Wt::WLocale& locale, const std::string& key,
+                          ::uint64_t amount) override {
         WMessageResourceBundle* default_bundle = data_->default_bundle_;
-        BOOST_ASSERT(default_bundle);
-        if (bundle_ && bundle_->resolvePluralKey(key, result, amount)) {
-            return true;
-        } else if (default_bundle->resolvePluralKey(key, result, amount)) {
-            return true;
-        } else {
-            return false;
+        assert(default_bundle);
+        if (bundle_) {
+            Wt::LocalizedString result = bundle_->resolvePluralKey(locale, key, amount);
+            if (result.success) {
+                return result;
+            }
         }
+        return default_bundle->resolvePluralKey(locale, key, amount);
     }
 
     void refresh() {
@@ -62,7 +61,7 @@ private:
     WMessageResourceBundle* bundle_;
 
     void update_bundle_ptr() {
-        std::string lang = get_locale(wApp);
+        std::string lang = get_locale(Wt::WApplication::instance());
         lang.resize(2); // en-US => en
         if (lang == "en") {
             lang = "";
@@ -72,7 +71,7 @@ private:
         if (it != data_->lang_to_bundle_.end()) {
             bundle_ = &(it->second);
         } else {
-            bundle_ = 0;
+            bundle_ = nullptr;
         }
     }
 };
@@ -94,14 +93,12 @@ static void add_path_to_bundle(WMessageResourceBundle& bundle,
                                const std::string& lang) {
     std::string full_path = path + (lang.empty() ? "" : "_") + lang;
     bundle.use(full_path);
-    bundle.refresh();
 }
 
 void GlobalLocalizedStrings::use(const std::string& path) {
     if (std::find(paths_.begin(), paths_.end(), path) == paths_.end()) {
         paths_.push_back(path);
-        BOOST_FOREACH (Lang2Bundle::value_type& lang_and_bundle,
-                      lang_to_bundle_) {
+        for (Lang2Bundle::value_type& lang_and_bundle : lang_to_bundle_) {
             const std::string& lang = lang_and_bundle.first;
             WMessageResourceBundle& bundle = lang_and_bundle.second;
             add_path_to_bundle(bundle, path, lang);
@@ -112,7 +109,7 @@ void GlobalLocalizedStrings::use(const std::string& path) {
 void GlobalLocalizedStrings::add_lang(const std::string& lang) {
     if (lang_to_bundle_.find(lang) == lang_to_bundle_.end()) {
         WMessageResourceBundle& bundle = lang_to_bundle_[lang];
-        BOOST_FOREACH (const std::string& path, paths_) {
+        for (const std::string& path : paths_) {
             add_path_to_bundle(bundle, path, lang);
         }
     }
@@ -121,4 +118,3 @@ void GlobalLocalizedStrings::add_lang(const std::string& lang) {
 }
 
 }
-

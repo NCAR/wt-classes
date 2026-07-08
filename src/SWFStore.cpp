@@ -5,7 +5,7 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <Wt/WApplication>
+#include <Wt/WApplication.h>
 
 #include "SWFStore.hpp"
 #include "util.hpp"
@@ -15,13 +15,13 @@ namespace Wt {
 
 namespace Wc {
 
-SWFStore::SWFStore(WContainerWidget* parent, bool load_javascript,
+SWFStore::SWFStore(bool load_javascript,
                    bool share_data, bool use_compression):
-    AbstractStore(parent) {
+    AbstractStore() {
     resize(0, 0);
     if (load_javascript) {
         // TODO move to https CDN
-        wApp->require("http://yui.yahooapis.com/combo?"
+        Wt::WApplication::instance()->require("http://yui.yahooapis.com/combo?"
                       "2.9.0/build/yahoo-dom-event/yahoo-dom-event.js&"
                       "2.9.0/build/element/element-min.js&"
                       "2.9.0/build/cookie/cookie-min.js&"
@@ -57,7 +57,7 @@ void SWFStore::get_value_of_impl(const std::string& key,
                                  const std::string& def) {
     async_do("var value = $(" + jsRef() + ").data('swfstore')"
              ".getValueOf('" + key + "') || '" + def + "';" +
-             value().createCall("'" + key + "'", "value"));
+             value().createCall(std::initializer_list<std::string>{ "'" + key + "'", "value" }));
 }
 
 void SWFStore::async_do(const std::string& js) {
@@ -74,4 +74,3 @@ void SWFStore::async_do(const std::string& js) {
 }
 
 }
-

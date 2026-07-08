@@ -8,9 +8,9 @@
 #ifndef WC_ABSTRACT_STORE_HPP_
 #define WC_ABSTRACT_STORE_HPP_
 
-#include <Wt/WGlobal>
-#include <Wt/WContainerWidget>
-#include <Wt/WJavaScript>
+#include <Wt/WGlobal.h>
+#include <Wt/WContainerWidget.h>
+#include <Wt/WJavaScript.h>
 
 namespace Wt {
 
@@ -23,9 +23,8 @@ namespace Wc {
 class AbstractStore : public WContainerWidget {
 public:
     /** Constructor.
-    \param parent The parent widget.
     */
-    AbstractStore(WContainerWidget* parent = 0);
+    AbstractStore();
 
     /** Clear all keys and the data from the engine */
     void clear_storage();
@@ -78,4 +77,3 @@ private:
 }
 
 #endif
-

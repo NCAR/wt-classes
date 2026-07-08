@@ -8,22 +8,23 @@
 #include "config.hpp"
 #include "global.hpp"
 
-#include <boost/bind.hpp>
+#include <functional>
 
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
-#include <Wt/WResource>
-#include <Wt/Http/Request>
-#include <Wt/Http/Response>
-#include <Wt/WAnchor>
-#include <Wt/WImage>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
+#include <Wt/WResource.h>
+#include <Wt/Http/Request.h>
+#include <Wt/Http/Response.h>
+#include <Wt/WAnchor.h>
+#include <Wt/WImage.h>
 
 #ifndef WC_HAVE_WCOMPOSITEWIDGET_IMPLEMENTATION
 // FIXME nasty public morozov
 #define private friend class Wt::Wc::MapImage; private
-#include <Wt/WCompositeWidget>
+#include <Wt/WCompositeWidget.h>
 #undef private
-#define implementation() Wt::WCompositeWidget::impl_
+// Wt 4 uses unique_ptr, so we must call .get() to extract the raw pointer for DOWNCAST
+#define implementation() Wt::WCompositeWidget::impl_.get()
 #endif // WC_HAVE_WCOMPOSITEWIDGET_IMPLEMENTATION
 
 #include "MapImage.hpp"
@@ -35,12 +36,11 @@ namespace Wc {
 
 class MapResource : public WResource {
 public:
-    MapResource(const std::string& redirect_to, MapImage* map_image,
-                WObject* parent = 0):
-        WResource(parent),
+    MapResource(const std::string& redirect_to, MapImage* map_image):
+        WResource(),
         redirect_to_(redirect_to),
         map_image_(map_image),
-        app_(wApp)
+        app_(Wt::WApplication::instance())
     { }
 
     ~MapResource() {
@@ -48,19 +48,20 @@ public:
     }
 
     void handleRequest(const Wt::Http::Request& request,
-                       Wt::Http::Response& response) {
-        WApplication::UpdateLock app_lock = app_->getUpdateLock();
-        WMouseEvent::Coordinates xy(-1, -1);
+                       Wt::Http::Response& response) override {
+        Wt::WApplication::UpdateLock app_lock(app_);
+        Wt::Coordinates xy(-1, -1);
         const std::string* xy_str = request.getParameter("MapImageXY");
         if (xy_str) {
-            int comma_pos = xy_str->find(',');
+            size_t comma_pos = xy_str->find(',');
             if (comma_pos != std::string::npos) {
                 std::string x_str = xy_str->substr(1, comma_pos - 1);
                 std::string y_str = xy_str->substr(comma_pos + 1);
                 try {
-                    int x = boost::lexical_cast<int>(x_str);
-                    int y = boost::lexical_cast<int>(y_str);
-                    xy = WMouseEvent::Coordinates(x, y);
+                    int x = std::stoi(x_str);
+                    int y = std::stoi(y_str);
+                    xy.x = x;
+                    xy.y = y;
                 } catch (...) {
                 }
             }
@@ -79,35 +80,36 @@ private:
     WApplication* app_;
 };
 
-void emit_clicked(MapImage::ClickSignal& signal, const WMouseEvent& event) {
-    signal.emit(event.widget());
-}
-
-MapImage::MapImage(WImage* image, WContainerWidget* parent):
-    WCompositeWidget(parent) {
-    if (wApp->environment().ajax()) {
-        setImplementation(image);
-        image->clicked().connect(boost::bind(emit_clicked, boost::ref(clicked_), _1));
+MapImage::MapImage(std::unique_ptr<WImage> image):
+    WCompositeWidget() {
+    if (Wt::WApplication::instance()->environment().ajax()) {
+        setImplementation(std::move(image));
+        image->clicked().connect([this](const Wt::WMouseEvent& event) {
+            clicked_.emit(event.widget());
+        });
     } else {
-        std::string url = wApp->bookmarkUrl();
+        std::string url = Wt::WApplication::instance()->bookmarkUrl();
         char join = url.find('?') == std::string::npos ? '?' : '&';
         url += join;
-        url += "wtd=" + wApp->sessionId();
-        MapResource* resource = new MapResource(url, this, this);
+        url += "wtd=" + Wt::WApplication::instance()->sessionId();
+        auto resource = std::make_shared<MapResource>(url, this);
         image->setAttributeValue("ismap", "ismap");
-        setImplementation(new WAnchor(resource->url() + "&MapImageXY=", image));
+
+        auto anchor = std::make_unique<WAnchor>(Wt::WLink(resource));
+        anchor->setLink(Wt::WLink(resource->url() + "&MapImageXY="));
+        anchor->addWidget(std::move(image));
+        setImplementation(std::move(anchor));
     }
 }
 
 WImage* MapImage::image() {
-    if (wApp->environment().ajax()) {
+    if (Wt::WApplication::instance()->environment().ajax()) {
         return DOWNCAST<WImage*>(implementation());
     } else {
-        return DOWNCAST<WAnchor*>(implementation())->image();
+        return DOWNCAST<WImage*>(DOWNCAST<WAnchor*>(implementation())->widget(0));
     }
 }
 
 }
 
 }
-

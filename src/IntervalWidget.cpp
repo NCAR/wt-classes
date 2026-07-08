@@ -11,14 +11,12 @@ namespace Wt {
 
 namespace Wc {
 
-IntervalWidget:: IntervalWidget(WWidget* min, WWidget* max,
-                                WContainerWidget* parent):
-    WTemplate(tr("wc.time.interval_template"), parent) {
-    bindWidget("min", min);
-    bindWidget("max", max);
+IntervalWidget::IntervalWidget(std::unique_ptr<WWidget> min, std::unique_ptr<WWidget> max):
+    WTemplate(tr("wc.time.interval_template")) {
+    bindWidget("min", std::move(min));
+    bindWidget("max", std::move(max));
 }
 
 }
 
 }
-

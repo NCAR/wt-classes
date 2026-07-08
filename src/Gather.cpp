@@ -5,13 +5,13 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <boost/foreach.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/algorithm/string/case_conv.hpp>
-#include <boost/algorithm/string/replace.hpp>
+#include <cctype>
+#include <algorithm>
+#include <chrono>
 
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
+#include <Wt/Http/Cookie.h>
 
 #include "Gather.hpp"
 #include "LocalStore.hpp"
@@ -27,22 +27,37 @@ namespace Wc {
 const std::string cookie_key = "userid";
 const std::string store_key = "userid";
 
-Gather::Gather(const DataExplorer& explorer, WObject* parent):
-    WObject(parent),
+static std::string to_lower_copy(const std::string& str) {
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+    return result;
+}
+
+static std::string replace_first_copy(const std::string& str, const std::string& from, const std::string& to) {
+    std::string result = str;
+    size_t start_pos = result.find(from);
+    if (start_pos == std::string::npos)
+        return result;
+    result.replace(start_pos, from.length(), to);
+    return result;
+}
+
+Gather::Gather(const DataExplorer& explorer):
+    WObject(),
     explorer_(explorer), signal_(this, "gather"),
     honor_dnt_(false), dnt_(false) {
-    const WEnvironment& env = wApp->environment();
+    const WEnvironment& env = Wt::WApplication::instance()->environment();
     if (env.headerValue("DNT") == "1" ||
             env.headerValue("Dnt") == "1" ||
             env.headerValue("dnt") == "1") {
         dnt_ = true;
     }
-    bound_post(boost::bind(&Gather::explore_all, this))();
+    bound_post([this]() { this->explore_all(); })();
 }
 
 void Gather::add_store(AbstractStore* store, DataType type) {
-    store->value().connect(boost::bind(&Gather::store_handler, this,
-                                       _1, _2, type, store));
+    store->value().connect([this, type, store](std::string arg1, std::string arg2) { this->store_handler(arg1, arg2, type, store); });
     StoreAndType sat;
     sat.store = store;
     sat.type = type;
@@ -139,39 +154,42 @@ void Gather::explore_all() {
 }
 
 void Gather::explore_simple() {
-    const WEnvironment& env = wApp->environment();
+    const WEnvironment& env = Wt::WApplication::instance()->environment();
     explorer_emitter(IP, env.clientAddress());
     explorer_emitter(USER_AGENT, env.userAgent());
     explorer_emitter(HTTP_ACCEPT, env.accept());
-    explorer_emitter(LOCALE, boost::algorithm::to_lower_copy(get_locale()));
+    explorer_emitter(LOCALE, to_lower_copy(get_locale()));
 }
 
 void Gather::explore_cookie() {
-    const WEnvironment& env = wApp->environment();
-    try {
-        const std::string cookie_value = env.getCookie(cookie_key);
-        explorer_emitter(COOKIE, cookie_value);
-    } catch (...) {
+    const WEnvironment& env = Wt::WApplication::instance()->environment();
+    const std::string* cookie_value = env.getCookie(cookie_key);
+    if (cookie_value) {
+        explorer_emitter(COOKIE, *cookie_value);
+    } else {
         int five_years = 3600 * 24 * 365 * 5;
-        wApp->setCookie(cookie_key, rand_string(), five_years);
+        Wt::Http::Cookie cookie(cookie_key, rand_string());
+        cookie.setMaxAge(std::chrono::seconds(five_years));
+        Wt::WApplication::instance()->setCookie(cookie);
     }
 }
 
 void Gather::explore_javascript() {
-    signal_.connect(this, &Gather::explorer_emitter_helper);
+    signal_.connect([this](int arg1, std::string arg2) { this->explorer_emitter_helper(arg1, arg2); });
     get_js_list(PLUGINS, "navigator.plugins", "name");
     get_js_list(MIME_TYPES, "navigator.mimeTypes", "suffixes.toLowerCase()");
-    doJavaScript(signal_.createCall(TO_S(SCREEN), "'' + screen.width + ',' + "
-                                    "screen.height + ',' + screen.colorDepth"));
-    doJavaScript(signal_.createCall(TO_S(TIMEZONE_OFFSET),
-                                    "''+(new Date()).getTimezoneOffset()"));
-    doJavaScript(signal_.createCall(TO_S(TIME_ERROR),
-                                    "''+Date.now() % (60 * 60 * 1000)"));
-    doJavaScript(signal_.createCall(TO_S(JAVA), "navigator.javaEnabled()"));
-    std::string call_ip = signal_.createCall(TO_S(WEBRTC_IP), "localIp");
-    std::string call_lan = signal_.createCall(TO_S(WEBRTC_LAN), "ip");
-    std::string call_ping = signal_.createCall(TO_S(PING), "ping");
-    using namespace boost::algorithm;
+    doJavaScript(signal_.createCall(std::initializer_list<std::string>{std::to_string(SCREEN),
+                                    "'' + screen.width + ',' + screen.height + ',' + screen.colorDepth"}));
+    doJavaScript(signal_.createCall(std::initializer_list<std::string>{std::to_string(TIMEZONE_OFFSET),
+                                    "''+(new Date()).getTimezoneOffset()"}));
+    doJavaScript(signal_.createCall(std::initializer_list<std::string>{std::to_string(TIME_ERROR),
+                                    "''+Date.now() % (60 * 60 * 1000)"}));
+    doJavaScript(signal_.createCall(std::initializer_list<std::string>{std::to_string(JAVA),
+                                    "navigator.javaEnabled()"}));
+    std::string call_ip = signal_.createCall(std::initializer_list<std::string>{std::to_string(WEBRTC_IP), "localIp"});
+    std::string call_lan = signal_.createCall(std::initializer_list<std::string>{std::to_string(WEBRTC_LAN), "ip"});
+    std::string call_ping = signal_.createCall(std::initializer_list<std::string>{std::to_string(PING), "ping"});
+
     std::string js = replace_first_copy(WebRTC_IP_JS, "__webrtc_ip__", call_ip);
     js = replace_first_copy(js, "__webrtc_lan__", call_lan);
     js = replace_first_copy(js, "__ping__", call_ping);
@@ -179,7 +197,7 @@ void Gather::explore_javascript() {
 }
 
 void Gather::explore_stores() {
-    BOOST_FOREACH (const StoreAndType& sat, stores_) {
+    for (const StoreAndType& sat : stores_) {
         sat.store->get_value_of(store_key);
     }
 }
@@ -199,9 +217,9 @@ void Gather::explorer_emitter(DataType type, const std::string& value) {
         }
         if (type == TIME_ERROR) {
             try {
-                int client_ms = boost::lexical_cast<int>(w);
-                int server_ms = now().toPosixTime()
-                                .time_of_day().total_milliseconds();
+                int client_ms = std::stoi(w);
+                int server_ms = now().toTimePoint().time_since_epoch().count() / 1000000; // ns to ms
+                                // .time_of_day().total_milliseconds();
                 int d = (client_ms - server_ms) % (60 * 60 * 1000);
                 if (d > 30 * 60 * 1000) {
                     // 30 mins
@@ -211,7 +229,7 @@ void Gather::explorer_emitter(DataType type, const std::string& value) {
                     d += 60 * 60 * 1000;
                 }
                 // from -30min to +30min
-                w = TO_S(d);
+                w = std::to_string(d);
             } catch (...) {
                 return;
             }
@@ -236,7 +254,7 @@ void Gather::store_handler(std::string key, std::string value,
 }
 
 void Gather::doJavaScript(const std::string& javascript) {
-    wApp->doJavaScript(javascript);
+    Wt::WApplication::instance()->doJavaScript(javascript);
 }
 
 void Gather::get_js_list(DataType type, const std::string& collection,
@@ -248,10 +266,9 @@ void Gather::get_js_list(DataType type, const std::string& collection,
                  "arr.push(" + collection + "[i]." + property + ");"
                  "} }"
                  "arr.sort();" +
-                 signal_.createCall(TO_S(type), "arr.join('|')"));
+                 signal_.createCall(std::initializer_list<std::string>{std::to_string(type), "arr.join('|')"}));
 }
 
 }
 
 }
-

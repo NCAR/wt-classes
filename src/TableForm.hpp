@@ -9,10 +9,11 @@
 #define WC_TABLE_FORM_HPP_
 
 #include <vector>
-#include <boost/function.hpp>
+#include <functional>
+#include <memory>
 
-#include <Wt/WGlobal>
-#include <Wt/WTable>
+#include <Wt/WGlobal.h>
+#include <Wt/WTable.h>
 
 namespace Wt {
 
@@ -38,7 +39,7 @@ Example:
 class TableForm : public WTable {
 public:
     /** Constructor */
-    TableForm(WContainerWidget* parent = 0);
+    TableForm();
 
     /** Start new section of form */
     void section(const WString& header);
@@ -46,8 +47,8 @@ public:
     /** Add new item to field */
     WContainerWidget* item(const WString& name,
                            const WString& description = "",
-                           WFormWidget* fw = 0,
-                           WWidget* input = 0,
+                           WFormWidget* fw = nullptr,
+                           std::unique_ptr<WWidget> input = nullptr,
                            bool row = true);
 
     /** Show the row containing the input widget */
@@ -63,7 +64,7 @@ public:
     \attention Do not add widgets manually (e.g. by WTable->elementAt())
         if you are using this method.
     */
-    void foreach(const boost::function<void(WWidget*)>& f);
+    void foreach(const std::function<void(WWidget*)>& f);
 
     /** Set comment to the input.
     To remove the comment, pass empty message string.
@@ -82,4 +83,3 @@ private:
 }
 
 #endif
-

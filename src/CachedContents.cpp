@@ -5,12 +5,11 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <boost/foreach.hpp>
-#include <boost/assert.hpp>
-#include <boost/algorithm/string/predicate.hpp>
+#include <cassert>
+#include <memory>
 
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
 
 #include "CachedContents.hpp"
 
@@ -18,8 +17,8 @@ namespace Wt {
 
 namespace Wc {
 
-CachedContents::CachedContents(WContainerWidget* parent):
-    WContainerWidget(parent), cache_size_(10), current_widget_(0),
+CachedContents::CachedContents():
+    WContainerWidget(), cache_size_(10), current_widget_(0),
     cache_title_(true)
 { }
 
@@ -39,7 +38,7 @@ void CachedContents::open_url(const std::string& url) {
             WidgetAndTitle& widget_and_title = url_to_widget_[fixed_url];
             widget_and_title.first = current_widget_;
             if (cache_title_) {
-                widget_and_title.second = wApp->title();
+                widget_and_title.second = Wt::WApplication::instance()->title();
             }
             visited_urls_.push_back(fixed_url);
             resize_cache();
@@ -49,7 +48,7 @@ void CachedContents::open_url(const std::string& url) {
             set_contents_raw(widget);
             if (cache_title_) {
                 const WString& title = widget_and_title.second;
-                wApp->setTitle(title);
+                Wt::WApplication::instance()->setTitle(title);
             }
             visited_urls_.remove(fixed_url); // O(cache_size)
             visited_urls_.push_back(fixed_url);
@@ -60,7 +59,7 @@ void CachedContents::open_url(const std::string& url) {
 void CachedContents::set_contents_raw(WWidget* w) {
     if (current_widget_) {
         bool current_is_cached = false;
-        BOOST_FOREACH (const Url2Widget::value_type& u2w, url_to_widget_) {
+        for (const Url2Widget::value_type& u2w : url_to_widget_) {
             // O(cache_size)
             const WidgetAndTitle& w_a_t = u2w.second;
             WWidget* widget = w_a_t.first;
@@ -71,24 +70,30 @@ void CachedContents::set_contents_raw(WWidget* w) {
         }
         if (!current_is_cached) {
             // it is ignored or set by external code
-            delete current_widget_;
+            if (current_widget_->parent()) {
+                current_widget_->removeFromParent();
+            } else {
+                delete current_widget_;
+            }
             current_widget_ = 0;
-        } else if (wApp->environment().ajax()) {
+        } else if (Wt::WApplication::instance()->environment().ajax()) {
             current_widget_->hide();
         } else {
             // HTML version, client side cache is useless
-            removeWidget(current_widget_);
+            removeWidget(current_widget_).release();
         }
     }
-    if (wApp->environment().ajax()) {
+    if (Wt::WApplication::instance()->environment().ajax()) {
         if (!w->parent()) {
-            addWidget(w);
+            addWidget(std::unique_ptr<WWidget>(w));
         } else {
             w->show();
         }
     } else {
         // HTML version, client side cache is useless
-        addWidget(w);
+        if (!w->parent()) {
+            addWidget(std::unique_ptr<WWidget>(w));
+        }
     }
     current_widget_ = w;
 }
@@ -114,10 +119,14 @@ void CachedContents::clear() {
 }
 
 void CachedContents::clear_cache() {
-    BOOST_FOREACH (Url2Widget::value_type& u2w, url_to_widget_) {
+    for (Url2Widget::value_type& u2w : url_to_widget_) {
         WidgetAndTitle& widget_and_title = u2w.second;
         WWidget* widget = widget_and_title.first;
-        delete widget;
+        if (widget->parent()) {
+            widget->removeFromParent();
+        } else {
+            delete widget;
+        }
     }
     url_to_widget_.clear();
     visited_urls_.clear();
@@ -136,11 +145,15 @@ void CachedContents::resize_cache() {
     while (visited_urls_.size() > desired_size) {
         const std::string& url = visited_urls_.front();
         Url2Widget::iterator it = url_to_widget_.find(url);
-        BOOST_ASSERT(it != url_to_widget_.end());
+        assert(it != url_to_widget_.end());
         WidgetAndTitle& widget_and_title = it->second;
         WWidget* widget = widget_and_title.first;
         if (widget != current_widget_) {
-            delete widget;
+            if (widget->parent()) {
+                widget->removeFromParent();
+            } else {
+                delete widget;
+            }
         }
         url_to_widget_.erase(it);
         visited_urls_.pop_front();
@@ -156,7 +169,7 @@ bool CachedContents::is_ignored(const std::string& url) {
         if (it != ignored_prefixes_.begin()) {
             it--;
             const std::string& prefix = *it;
-            if (boost::starts_with(url, prefix)) {
+            if (url.find(prefix) == 0) {
                 return true;
             }
         }
@@ -167,4 +180,3 @@ bool CachedContents::is_ignored(const std::string& url) {
 }
 
 }
-

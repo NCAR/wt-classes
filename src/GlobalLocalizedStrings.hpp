@@ -11,8 +11,8 @@
 #include <map>
 #include <vector>
 
-#include <Wt/WLocalizedStrings>
-#include <Wt/WMessageResourceBundle>
+#include <Wt/WLocalizedStrings.h>
+#include <Wt/WMessageResourceBundle.h>
 
 namespace Wt {
 
@@ -29,7 +29,7 @@ global_storage.use(Wt::Wc::approot() + "another1");
 global_storage.add_lang("ru");
 global_storage.add_lang("uk");
 // in session
-wApp->setLocalizedStrings(global_storage->create_localized_strings());
+Wt::WApplication::instance()->setLocalizedStrings(global_storage->create_localized_strings());
 \endcode
 
 \warning Global storage should not be modified
@@ -76,4 +76,3 @@ private:
 }
 
 #endif
-

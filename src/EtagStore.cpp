@@ -5,10 +5,12 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <Wt/WApplication>
-#include <Wt/WImage>
-#include <Wt/Http/Request>
-#include <Wt/Http/Response>
+#include <Wt/WApplication.h>
+#include <Wt/WImage.h>
+#include <Wt/WLink.h>
+#include <Wt/WResource.h>
+#include <Wt/Http/Request.h>
+#include <Wt/Http/Response.h>
 
 #include "EtagStore.hpp"
 #include "rand.hpp"
@@ -20,11 +22,10 @@ namespace Wc {
 
 EtagStoreResource::EtagStoreResource(const std::string& cookie_name,
                                      const std::string& send_header,
-                                     const std::string& receive_header,
-                                     WObject* parent):
-    WResource(parent), cookie_name_(cookie_name),
+                                     const std::string& receive_header):
+    WResource(), cookie_name_(cookie_name),
     send_header_(send_header), receive_header_(receive_header) {
-    setDispositionType(WResource::Inline);
+    setDispositionType(Wt::ContentDisposition::Inline);
 }
 
 static const unsigned char EMPTY_GIF[] = {
@@ -41,7 +42,7 @@ void EtagStoreResource::handleRequest(const Http::Request& request,
                                       Http::Response& response) {
     handle_etag(request, response);
     response.setMimeType("image/gif");
-    response.addHeader("Content-Length", TO_S(EMPTY_GIF_SIZE));
+    response.addHeader("Content-Length", std::to_string(EMPTY_GIF_SIZE));
     response.out().write( reinterpret_cast<const char*>(EMPTY_GIF),  
 EMPTY_GIF_SIZE);
 }
@@ -65,7 +66,7 @@ void EtagStoreResource::handle_etag(const Http::Request& request,
     std::string cookie_value = cookies.substr(cookie_begin, cookie_length);
     //
     std::string etag_value = request.headerValue(receive_header());
-    boost::mutex::scoped_lock lock(cookie_to_etag_mutex_);
+    std::lock_guard<std::mutex> lock(cookie_to_etag_mutex_);
     Map::iterator it = cookie_to_etag_.find(cookie_value);
     if (it == cookie_to_etag_.end()) {
         return;
@@ -86,24 +87,23 @@ void EtagStoreResource::handle_etag(const Http::Request& request,
     }
 }
 
-EtagStore::EtagStore(EtagStoreResource* resource, WContainerWidget* parent):
-    AbstractStore(parent), resource_(resource) {
+EtagStore::EtagStore(EtagStoreResource* resource):
+    AbstractStore(), resource_(resource) {
     cookie_value_ = rand_string();
     int day = 3600 * 24;
-    wApp->setCookie(resource_->cookie_name(), cookie_value_, day);
+    Wt::WApplication::instance()->setCookie(resource_->cookie_name(), cookie_value_, day);
     {
-        boost::mutex::scoped_lock lock(resource_->cookie_to_etag_mutex_);
+        std::lock_guard<std::mutex> lock(resource_->cookie_to_etag_mutex_);
         typedef EtagStoreResource::Etag Etag;
         Etag& etag = resource_->cookie_to_etag_[cookie_value_];
-        etag.handler = one_bound_post(boost::bind(&EtagStore::emit_value,
-                                      this, _1));
+        etag.handler = one_bound_post([this](const std::any& result) { this->emit_value(result); });
     }
     resize(0, 0);
-    wApp->enableUpdates();
+    Wt::WApplication::instance()->enableUpdates();
 }
 
 EtagStore::~EtagStore() {
-    boost::mutex::scoped_lock lock(resource_->cookie_to_etag_mutex_);
+    std::lock_guard<std::mutex> lock(resource_->cookie_to_etag_mutex_);
     resource_->cookie_to_etag_.erase(cookie_value_);
 }
 
@@ -114,7 +114,7 @@ void EtagStore::clear_storage_impl() {
 void EtagStore::set_item_impl(const std::string& key,
                               const std::string& value) {
     {
-        boost::mutex::scoped_lock lock(resource_->cookie_to_etag_mutex_);
+        std::lock_guard<std::mutex> lock(resource_->cookie_to_etag_mutex_);
         typedef EtagStoreResource::Etag Etag;
         Etag& etag = resource_->cookie_to_etag_[cookie_value_];
         etag.to_client = value;
@@ -130,7 +130,7 @@ void EtagStore::remove_item_impl(const std::string& key) {
 void EtagStore::get_value_of_impl(const std::string& key,
                                   const std::string& def) {
     {
-        boost::mutex::scoped_lock lock(resource_->cookie_to_etag_mutex_);
+        std::lock_guard<std::mutex> lock(resource_->cookie_to_etag_mutex_);
         resource_->cookie_to_etag_[cookie_value_].def = def;
     }
     key_ = key;
@@ -139,17 +139,15 @@ void EtagStore::get_value_of_impl(const std::string& key,
 
 void EtagStore::update_image() {
     clear();
-    WImage* image = new WImage(resource_->url());
-    addWidget(image);
+    WImage* image = addWidget(std::make_unique<WImage>(Wt::WLink(resource_->url())));
     image->resize(0, 0);
-    wApp->triggerUpdate();
+    Wt::WApplication::instance()->triggerUpdate();
 }
 
-void EtagStore::emit_value(const boost::any& result) {
-    value().emit(key_, boost::any_cast<std::string>(result));
+void EtagStore::emit_value(const std::any& result) {
+    value().emit(key_, std::any_cast<std::string>(result));
 }
 
 }
 
 }
-

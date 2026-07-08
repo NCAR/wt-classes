@@ -8,9 +8,9 @@
 #ifndef WC_RECAPTCHA_HPP_
 #define WC_RECAPTCHA_HPP_
 
-#include <boost/system/error_code.hpp>
+#include <system_error>
 
-#include <Wt/WGlobal>
+#include <Wt/WGlobal.h>
 
 #include "AbstractCaptcha.hpp"
 #include "config.hpp"
@@ -34,8 +34,7 @@ Text "reCAPTCHA" above the image: \c wc_recaptcha_title.
 class Recaptcha : public AbstractCaptcha {
 public:
     /** Constructor */
-    Recaptcha(const std::string& public_key, const std::string& private_key,
-              WContainerWidget* parent = 0);
+    Recaptcha(const std::string& public_key, const std::string& private_key);
 
     /** Destructor */
     ~Recaptcha();
@@ -58,8 +57,8 @@ public:
     void set_input(WFormWidget* input);
 
 protected:
-    void update_impl();
-    void check_impl();
+    void update_impl() override;
+    void check_impl() override;
 
 private:
     bool buttons_enabled_;
@@ -72,7 +71,7 @@ private:
 
     bool js() const;
     WContainerWidget* get_impl();
-    void http_done(const boost::system::error_code& e,
+    void http_done(const std::error_code& e,
                    const Http::Message& message);
     void add_buttons();
 };
@@ -82,4 +81,3 @@ private:
 }
 
 #endif
-

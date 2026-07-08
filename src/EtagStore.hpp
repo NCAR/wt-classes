@@ -9,14 +9,13 @@
 #define WC_ETAG_STORE_HPP_
 
 #include <map>
-#include <boost/any.hpp>
-#include <boost/function.hpp>
-#include "boost-xtime.hpp"
-#include <boost/thread/mutex.hpp>
+#include <any>
+#include <functional>
+#include <mutex>
 
-#include <Wt/WGlobal>
-#include <Wt/WResource>
-#include <Wt/WContainerWidget>
+#include <Wt/WGlobal.h>
+#include <Wt/WResource.h>
+#include <Wt/WContainerWidget.h>
 
 #include "AbstractStore.hpp"
 
@@ -36,15 +35,13 @@ public:
         (ETag or Last-Modified)
     \param receive_header Header received from client
         (If-None-Match or If-Modified-Since)
-    \param parent Parent Wt object
     */
     EtagStoreResource(const std::string& cookie_name = "wces",
                       const std::string& send_header = "ETag",
-                      const std::string& receive_header = "If-None-Match",
-                      WObject* parent = 0);
+                      const std::string& receive_header = "If-None-Match");
 
     /** Handles a request */
-    void handleRequest(const Http::Request& request, Http::Response& response);
+    void handleRequest(const Http::Request& request, Http::Response& response) override;
 
     /** Return name of cookie used to distinguish clients */
     const std::string& cookie_name() const {
@@ -63,7 +60,7 @@ public:
 
 private:
     struct Etag {
-        typedef boost::function<void(const boost::any&)> OneAnyFunc;
+        typedef std::function<void(const std::any&)> OneAnyFunc;
         OneAnyFunc handler;
         std::string from_client;
         std::string to_client;
@@ -71,7 +68,7 @@ private:
     };
     typedef std::map<std::string, Etag> Map;
     Map cookie_to_etag_;
-    boost::mutex cookie_to_etag_mutex_;
+    std::mutex cookie_to_etag_mutex_;
     std::string cookie_name_;
     std::string send_header_;
     std::string receive_header_;
@@ -107,19 +104,19 @@ gather->add_store(store, Gather::ETAG);
 class EtagStore : public AbstractStore {
 public:
     /** Constructor */
-    EtagStore(EtagStoreResource* resource, WContainerWidget* parent = 0);
+    EtagStore(EtagStoreResource* resource);
 
     /** Destructor */
     ~EtagStore();
 
 protected:
-    void clear_storage_impl();
+    void clear_storage_impl() override;
 
-    void set_item_impl(const std::string& key, const std::string& value);
+    void set_item_impl(const std::string& key, const std::string& value) override;
 
-    void remove_item_impl(const std::string& key);
+    void remove_item_impl(const std::string& key) override;
 
-    void get_value_of_impl(const std::string& key, const std::string& def);
+    void get_value_of_impl(const std::string& key, const std::string& def) override;
 
 private:
     EtagStoreResource* resource_;
@@ -127,7 +124,7 @@ private:
     std::string key_;
 
     void update_image();
-    void emit_value(const boost::any& result);
+    void emit_value(const std::any& result);
 };
 
 }
@@ -135,4 +132,3 @@ private:
 }
 
 #endif
-

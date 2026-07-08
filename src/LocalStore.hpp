@@ -8,7 +8,7 @@
 #ifndef WC_LOCAL_STORE_HPP_
 #define WC_LOCAL_STORE_HPP_
 
-#include <Wt/WGlobal>
+#include <Wt/WGlobal.h>
 
 #include "AbstractStore.hpp"
 
@@ -23,16 +23,16 @@ namespace Wc {
 class LocalStore : public AbstractStore {
 public:
     /** Constructor */
-    LocalStore(WContainerWidget* parent = 0);
+    LocalStore();
 
 protected:
-    void clear_storage_impl();
+    void clear_storage_impl() override;
 
-    void set_item_impl(const std::string& key, const std::string& value);
+    void set_item_impl(const std::string& key, const std::string& value) override;
 
-    void remove_item_impl(const std::string& key);
+    void remove_item_impl(const std::string& key) override;
 
-    void get_value_of_impl(const std::string& key, const std::string& def);
+    void get_value_of_impl(const std::string& key, const std::string& def) override;
 
 private:
     void try_do(const std::string& js);
@@ -43,4 +43,3 @@ private:
 }
 
 #endif
-

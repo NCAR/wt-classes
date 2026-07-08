@@ -7,9 +7,10 @@
 
 #include <sstream>
 #include <fstream>
+#include <memory>
 
-#include <Wt/WText>
-#include <Wt/WResource>
+#include <Wt/WText.h>
+#include <Wt/WResource.h>
 
 #include "StreamView.hpp"
 #include "FileView.hpp"
@@ -19,17 +20,17 @@ namespace Wt {
 
 namespace Wc {
 
-StreamView::StreamView(std::istream* input_stream, WContainerWidget* parent):
-    WViewWidget(parent),
+StreamView::StreamView(std::istream* input_stream):
+    WViewWidget(),
     input_stream_(input_stream),
-    encoding_(UTF8)
+    encoding_(Wt::CharEncoding::UTF8)
 { }
 
-StreamView::StreamView(WContainerWidget* parent):
-    WViewWidget(parent),
+StreamView::StreamView():
+    WViewWidget(),
     input_stream_(0),
-    encoding_(UTF8),
-    format_(XHTMLText),
+    encoding_(Wt::CharEncoding::UTF8),
+    format_(Wt::TextFormat::XHTML),
     word_wrap_(true)
 { }
 
@@ -38,11 +39,11 @@ void StreamView::set_stream(std::istream* input_stream) {
     update();
 }
 
-WWidget* StreamView::renderView() {
+std::unique_ptr<WWidget> StreamView::renderView() {
     return create_text(input_stream_);
 }
 
-WText* StreamView::create_text(std::istream* input_stream) const {
+std::unique_ptr<WText> StreamView::create_text(std::istream* input_stream) const {
     std::string str;
     if (input_stream) {
         input_stream->seekg(0, std::ios::end);
@@ -51,18 +52,18 @@ WText* StreamView::create_text(std::istream* input_stream) const {
         str.assign((std::istreambuf_iterator<char>(*input_stream)),
                    std::istreambuf_iterator<char>());
     }
-    WText* result = new WText(WString(str, encoding_), format_);
+    auto result = std::make_unique<WText>(WString(str, encoding_), format_);
     result->setWordWrap(word_wrap_);
     return result;
 }
 
-FileView::FileView(const std::string& filename, WContainerWidget* parent):
-    StreamView(parent),
+FileView::FileView(const std::string& filename):
+    StreamView(),
     filename_(filename)
 { }
 
-FileView::FileView(WContainerWidget* parent):
-    StreamView(parent)
+FileView::FileView():
+    StreamView()
 { }
 
 void FileView::set_filename(const std::string& filename) {
@@ -70,18 +71,18 @@ void FileView::set_filename(const std::string& filename) {
     update();
 }
 
-WWidget* FileView::renderView() {
+std::unique_ptr<WWidget> FileView::renderView() {
     std::fstream f(filename_.c_str());
     return create_text(filename_.empty() ? 0 : &f);
 }
 
-ResourceView::ResourceView(WResource* resource, WContainerWidget* parent):
-    StreamView(parent),
+ResourceView::ResourceView(WResource* resource):
+    StreamView(),
     resource_(resource)
 { }
 
-ResourceView::ResourceView(WContainerWidget* parent):
-    StreamView(parent),
+ResourceView::ResourceView():
+    StreamView(),
     resource_(0)
 { }
 
@@ -90,7 +91,7 @@ void ResourceView::set_resource(WResource* resource) {
     update();
 }
 
-WWidget* ResourceView::renderView() {
+std::unique_ptr<WWidget> ResourceView::renderView() {
     std::stringstream ss;
     if (resource_) {
         resource_->write(ss);
@@ -101,4 +102,3 @@ WWidget* ResourceView::renderView() {
 }
 
 }
-

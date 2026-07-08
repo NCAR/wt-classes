@@ -5,13 +5,11 @@
  * See the LICENSE file for terms of use.
  */
 
-#define BOOST_FILESYSTEM_VERSION 3
-
 #include <cstdio>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 
-#include <Wt/WApplication>
-#include <Wt/WLogger>
+#include <Wt/WApplication.h>
+#include <Wt/WLogger.h>
 
 #include "FilterResource.hpp"
 #include "util.hpp"
@@ -20,18 +18,18 @@ namespace Wt {
 
 namespace Wc {
 
-FilterResource::FilterResource(const WString& cmd, WObject* parent):
-    WFileResource("text/plain", "file.txt", parent), cmd_(cmd)
+FilterResource::FilterResource(const WString& cmd):
+    WFileResource("text/plain", "file.txt"), cmd_(cmd)
 { }
 
 FilterResource::~FilterResource() {
     beingDeleted();
-    remove(output_file_.c_str());
+    std::remove(output_file_.c_str());
 }
 
 void FilterResource::handleRequest(const Http::Request& request,
                                    Http::Response& response) {
-    using namespace boost::filesystem;
+    using namespace std::filesystem;
     mutex_.lock();
     if (output_file_.empty()) {
         std::string input_file = unique_filename();
@@ -47,12 +45,12 @@ void FilterResource::handleRequest(const Http::Request& request,
                     setFileName(output_file_);
                 }
             } catch (std::exception& e) {
-                wApp->log("warning") << "FilterResource: " << e.what();
+                Wt::WApplication::instance()->log("warning") << "FilterResource: " << e.what();
             } catch (...) {
-                wApp->log("warning") << "FilterResource: error";
+                Wt::WApplication::instance()->log("warning") << "FilterResource: error";
             }
         }
-        remove(input_file.c_str());
+        std::remove(input_file.c_str());
     }
     mutex_.unlock();
     WFileResource::handleRequest(request, response);
@@ -61,7 +59,7 @@ void FilterResource::handleRequest(const Http::Request& request,
 void FilterResource::update(bool cal_set_changed) {
     mutex_.lock();
     if (!output_file_.empty()) {
-        remove(output_file_.c_str());
+        std::remove(output_file_.c_str());
         output_file_ = "";
     }
     mutex_.unlock();
@@ -73,4 +71,3 @@ void FilterResource::update(bool cal_set_changed) {
 }
 
 }
-

@@ -8,7 +8,7 @@
 #ifndef WC_TIME_DURATION_DBO_HPP_
 #define WC_TIME_DURATION_DBO_HPP_
 
-#include <Wt/WGlobal>
+#include <Wt/WGlobal.h>
 
 #include "TimeDuration.hpp"
 
@@ -42,4 +42,3 @@ struct sql_value_traits<Wc::td::TimeDuration, void> {
 }
 
 #endif
-

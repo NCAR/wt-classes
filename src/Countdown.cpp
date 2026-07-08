@@ -5,15 +5,15 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <ctype.h>
-#include <boost/foreach.hpp>
-#include <boost/format.hpp>
+#include <cctype>
+#include <memory>
+#include <cstdio>
 
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
-#include <Wt/WDateTime>
-#include <Wt/WViewWidget>
-#include <Wt/WText>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
+#include <Wt/WDateTime.h>
+#include <Wt/WViewWidget.h>
+#include <Wt/WText.h>
 
 #include "Countdown.hpp"
 #include "util.hpp"
@@ -27,8 +27,9 @@ using namespace td;
 
 class Countdown::View : public WViewWidget {
 public:
-    View(Countdown* parent):
-        WViewWidget(parent),
+    View(Countdown* parent_countdown):
+        WViewWidget(),
+        countdown_(parent_countdown),
         since_(current_time())
     { }
 
@@ -45,13 +46,15 @@ public:
     td::TimeDuration current_duration() const;
 
 protected:
-    WWidget* renderView() {
-        return new WText(current_text());
+    std::unique_ptr<WWidget> renderView() override {
+        return std::make_unique<WText>(current_text());
     }
 
 private:
+    Countdown* countdown_;
+
     Countdown* countdown() {
-        return DOWNCAST<Countdown*>(parent());
+        return countdown_;
     }
 
     WDateTime current_time() const {
@@ -59,8 +62,8 @@ private:
     }
 };
 
-Countdown::Countdown(WContainerWidget* parent, bool load_javascript):
-    WContainerWidget(parent),
+Countdown::Countdown(bool load_javascript):
+    WContainerWidget(),
     unit_(SECOND / 10),
     now_(now()),
     view_(0),
@@ -70,12 +73,12 @@ Countdown::Countdown(WContainerWidget* parent, bool load_javascript):
     implementJavaScript(&Countdown::lap, lap_js());
     implementJavaScript(&Countdown::resume, resume_js());
     if (load_javascript) {
-        wApp->require("http://cdnjs.cloudflare.com/ajax/libs/jquery-countdown/"
+        Wt::WApplication::instance()->require("http://cdnjs.cloudflare.com/ajax/libs/jquery-countdown/"
                       "1.6.1/jquery.countdown.min.js", "jQuery.countdown");
     }
     apply_js("{since: 0, compact: true}");
-    if (!wApp->environment().javaScript()) {
-        view_ = new View(this);
+    if (!Wt::WApplication::instance()->environment().javaScript()) {
+        view_ = addWidget(std::make_unique<View>(this));
     }
     set_format();
     set_time_separator();
@@ -162,7 +165,7 @@ std::string Countdown::View::current_text() const {
     TimeDuration remaining_duration = current_duration();
     std::string result;
     int i = 0;
-    BOOST_FOREACH (char p, format_) {
+    for (char p : format_) {
         while (toupper(p) != PERIOD_LETTERS[i] && i != PERIOD_LENGTH) {
             ++i;
         }
@@ -174,12 +177,14 @@ std::string Countdown::View::current_text() const {
                     result += ' ';
                 }
                 if (i < COMPACT_LABELS_LENGTH) {
-                    result += TO_S(c) + COMPACT_LABELS[i];
+                    result += std::to_string(c) + COMPACT_LABELS[i];
                 } else {
                     if (!result.empty() && isdigit(result[result.size() - 1])) {
                         result += time_separator_;
                     }
-                    result += str(boost::format("%02i") % c);
+                    char buf[16];
+                    std::snprintf(buf, sizeof(buf), "%02i", c);
+                    result += buf;
                 }
                 remaining_duration -= c * PERIOD_DURATIONS[i];
             }
@@ -198,7 +203,7 @@ TimeDuration Countdown::View::current_duration() const {
         n = resumed_;
     }
     TimeDuration r = since_.isValid() ? n - since_ : until_ - n;
-    if (r.is_negative()) {
+    if (r.count() < 0) {
         r = TD_NULL;
     }
     return r;
@@ -248,7 +253,7 @@ Countdown::Expired::operator JSignal<>*() const {
 
 Countdown::Expired::~Expired() {
     countdown->change("onExpiry", "function() {" +
-                      countdown->expired_->createCall() + "}");
+                      countdown->expired_->createCall(std::initializer_list<std::string>{}) + "}");
 }
 
 Countdown::Expired Countdown::expired() {
@@ -270,7 +275,7 @@ WDateTime Countdown::current_time() const {
 }
 
 std::string Countdown::duration_for_js(const TimeDuration& duration) {
-    return TO_S(duration.total_nanoseconds()) + "/1.e9";
+    return std::to_string(duration.total_nanoseconds()) + "/1.e9";
 }
 
 void Countdown::do_js(const std::string& js) {
@@ -285,7 +290,7 @@ void Countdown::do_js(const std::string& js, const td::TimeDuration& duration) {
         clear_timeout();
         doJavaScript("$(" + jsRef() + ").data('timeout',"
                      "setTimeout(function() {" + js +
-                     "}, " + TO_S(duration.total_milliseconds()) + "));");
+                     "}, " + std::to_string(duration.total_milliseconds()) + "));");
     }
 }
 
@@ -375,4 +380,3 @@ void Countdown::clear_timeout() {
 }
 
 }
-

@@ -7,17 +7,18 @@
 #ifndef WC_MAP_VIEWER_HPP_
 #define WC_MAP_VIEWER_HPP_
 
-#include <boost/function.hpp>
-#include <boost/system/error_code.hpp>
+#include <functional>
+#include <system_error>
+#include <memory>
 
-#include <Wt/WGlobal>
-#include <Wt/WCompositeWidget>
-#include <Wt/WGoogleMap>
-#include <Wt/WPoint>
-#include <Wt/WSignal>
-#include <Wt/WJavaScript>
-#include <Wt/WEvent>
-#include <Wt/WRectF>
+#include <Wt/WGlobal.h>
+#include <Wt/WCompositeWidget.h>
+#include <Wt/WGoogleMap.h>
+#include <Wt/WPoint.h>
+#include <Wt/WSignal.h>
+#include <Wt/WJavaScript.h>
+#include <Wt/WEvent.h>
+#include <Wt/WRectF.h>
 
 #include "config.hpp"
 
@@ -100,10 +101,10 @@ public:
     };
 
     /** Constructor */
-    MapViewer(Wt::WContainerWidget* parent = 0);
+    MapViewer();
 
     /** Destructor */
-    ~MapViewer();
+    ~MapViewer() override;
 
     /** Sets the map view to the given center */
     void set_center(const Coordinate& center);
@@ -240,14 +241,14 @@ private:
     WPoint xy_pos_;
     Signal<Coordinate> clicked_;
     JSignal<Coordinate> jclicked_;
-    Signal<GeoNodes>* found_;
-    JSignal<std::string>* jfound_;
-    Signal<GeoNode>* chosen_;
-    JSignal<std::string>* jchosen_;
-    Signal<GeoNodes>* html_found_signal_;
+    std::unique_ptr<Signal<GeoNodes>> found_;
+    std::unique_ptr<JSignal<std::string>> jfound_;
+    std::unique_ptr<Signal<GeoNode>> chosen_;
+    std::unique_ptr<JSignal<std::string>> jchosen_;
+    std::unique_ptr<Signal<GeoNodes>> html_found_signal_;
     Signal<GeoNodes>* found_signal_;
-    JSignal<std::string>* jtz_signal_;
-    Signal<TZ>* tz_signal_;
+    std::unique_ptr<JSignal<std::string>> jtz_signal_;
+    std::unique_ptr<Signal<TZ>> tz_signal_;
     //
     mutable bool markers_;
     bool smp_;
@@ -272,10 +273,10 @@ private:
 
     Wt::WContainerWidget* get_impl();
 
-    WContainerWidget* get_html_map();
+    std::unique_ptr<Wt::WContainerWidget> get_html_map();
     void html_markers_view(WContainerWidget* cw);
-    WContainerWidget* get_html_osm_attribution();
-    WContainerWidget* get_html_control_panel();
+    std::unique_ptr<Wt::WContainerWidget> get_html_osm_attribution();
+    std::unique_ptr<Wt::WContainerWidget> get_html_control_panel();
     void html_v(WContainerWidget* cw);
 
     const std::string get_smp_jsc() const;
@@ -283,23 +284,23 @@ private:
     const GeoNode found_node_parser(const std::string& data) const;
     void nominatim_data_parser(const std::string& data);
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
-    void nominatim_data_parser(const boost::system::error_code& e,
+    void nominatim_data_parser(std::error_code e,
                                const Http::Message& response);
 #endif
     void choice_data_parser(const std::string data);
     void tz_data_parser(const std::string& data);
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
-    void tz_data_parser(const boost::system::error_code& e,
+    void tz_data_parser(std::error_code e,
                         const Http::Message& response);
 #endif
     const std::string cipher(const std::string& str);
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
     const GeoNodes
-    http_request_parser(const boost::system::error_code& e,
+    http_request_parser(std::error_code e,
                         const Http::Message& response);
 #endif
-    WContainerWidget* html_search_panel();
-    void panel_html_search(WLineEdit* edit);
+    std::unique_ptr<Wt::WContainerWidget> html_search_panel();
+    void panel_html_search(const Wt::WString& search_str);
     void html_search_present(const GeoNodes& ns);
     void html_searh_chosen();
     void simple_refresh();
@@ -334,7 +335,7 @@ private:
                                      const std::string& lon) const;
     const std::string get_lonlat_jsc(const Coordinate& pos) const;
     void click_on(const WPoint& tile_xy,
-                  const WMouseEvent::Coordinates& img_xy);
+                  const Wt::Coordinates& img_xy);
     void click_on(const Coordinate& pos);
 
     void set_click_signal_();
@@ -357,4 +358,3 @@ private:
 }
 
 #endif
-

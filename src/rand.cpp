@@ -9,9 +9,10 @@
 #include <climits>
 #include <cstdlib>
 #include <fstream>
+#include <cstdio>
 
 #ifdef WC_HAVE_WRANDOM
-#include <Wt/WRandom>
+#include <Wt/WRandom.h>
 #else
 #include <cstdlib>
 #include <ctime>
@@ -27,7 +28,7 @@ namespace Wc {
 #ifndef WC_HAVE_WRANDOM
 struct Srander {
     Srander() {
-        std::srand(time(NULL));
+        std::srand(std::time(nullptr));
     }
 } srander;
 #endif
@@ -36,16 +37,15 @@ const unsigned int UINT_MIN = 0;
 
 unsigned int rr() {
 #ifdef WC_HAVE_WRANDOM
-    return WRandom::get();
+    return Wt::WRandom::get();
 #else
-    // TODO use boost random if available
     return rand();
 #endif
 }
 
 unsigned int rr(unsigned int stop) {
 #ifdef WC_HAVE_WRANDOM
-    return WRandom::get() % stop;
+    return Wt::WRandom::get() % stop;
 #else
     return rand() / (RAND_MAX / stop + 1);
 #endif
@@ -71,7 +71,7 @@ ptrdiff_t rand_for_shuffle(ptrdiff_t i) {
 
 std::string rand_string(int length) {
 #ifdef WC_HAVE_WRANDOM
-    return WRandom::generateId(length);
+    return Wt::WRandom::generateId(length);
 #else
     const std::string abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                             "abcdefghijklmnopqrstuvwxyz"
@@ -95,7 +95,7 @@ std::string good_password() {
         stream >> result;
     }
     stream.close();
-    remove(filename.c_str());
+    std::remove(filename.c_str());
     if (result.size() < 4) {
         result = rand_string(16);
         result[rr(0, 15)] = '$';
@@ -108,4 +108,3 @@ std::string good_password() {
 }
 
 }
-

@@ -5,11 +5,10 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <Wt/WPainter>
-#include <Wt/WRectF>
-#include <Wt/WPaintDevice>
-#include <Wt/WPainter>
-#include <Wt/WContainerWidget>
+#include <Wt/WPainter.h>
+#include <Wt/WRectF.h>
+#include <Wt/WPaintDevice.h>
+#include <Wt/WContainerWidget.h>
 
 #include "LogicalPaintedWidget.hpp"
 #include "Matrix3x3.hpp"
@@ -18,8 +17,8 @@ namespace Wt {
 
 namespace Wc {
 
-LogicalPaintedWidget::LogicalPaintedWidget(WContainerWidget* parent):
-    WPaintedWidget(parent)
+LogicalPaintedWidget::LogicalPaintedWidget():
+    WPaintedWidget()
 { }
 
 void LogicalPaintedWidget::set_logical_window(const WRectF& window,
@@ -75,7 +74,7 @@ void LogicalPaintedWidget::update_matrices(const WRectF& device,
     logical_view_port_ = out;
     ThreeWPoints from(in.topLeft(), in.topRight(), in.bottomLeft());
     ThreeWPoints to(out.topLeft(), out.topRight(), out.bottomLeft());
-    logical2device_ = Matrix3x3(from, to);
+    logical2device_ = Matrix3x3(from, to).toWTransform();
     device2logical_ = logical2device_.inverted();
     preserve_aspect_ = preserve_aspect;
 }
@@ -116,4 +115,3 @@ WRectF LogicalPaintedWidget::change_aspect(const WRectF& rect,
 }
 
 }
-

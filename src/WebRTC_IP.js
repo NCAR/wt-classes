@@ -1,4 +1,4 @@
-#include <Wt/WJavaScriptPreamble>
+#include <Wt/WJavaScriptPreamble.h>
 
 const std::string WebRTC_IP_JS = WT_JS(
 

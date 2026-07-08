@@ -9,10 +9,9 @@
 #define WC_DOT_RESOURCE_HPP_
 
 #include <fstream>
-#include "boost-xtime.hpp"
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 
-#include <Wt/WFileResource>
+#include <Wt/WFileResource.h>
 
 namespace Wt {
 
@@ -26,7 +25,7 @@ Example (graphviz dot wrapper):
 \code
 class DotResource : public Wt::Wc::FilterResource {
 public:
-    DotResource(Wt::WObject* parent = 0):
+    DotResource(Wt::WObject* parent = nullptr):
         Wt::Wc::FilterResource("dot -Tpng {1} -o {2}", parent) {
         setMimeType("image/png");
     }
@@ -49,7 +48,7 @@ public:
         {1} -- input file; {2} -- output file.
     \param parent The parent.
     */
-    FilterResource(const WString& cmd, WObject* parent = 0);
+    FilterResource(const WString& cmd);
 
     /** Destructor.
     Delete output file
@@ -65,7 +64,7 @@ public:
     /** Handles a request.
     Output file is lazily created here.
     */
-    void handleRequest(const Http::Request& request, Http::Response& response);
+    void handleRequest(const Http::Request& request, Http::Response& response) override;
 
     /** Mark current output file as outdated.
     \param cal_set_changed If WResource::setChanged() will be called.
@@ -79,7 +78,7 @@ public:
 private:
     WString cmd_;
     std::string output_file_;
-    boost::mutex mutex_;
+    std::mutex mutex_;
 };
 
 }
@@ -87,4 +86,3 @@ private:
 }
 
 #endif
-

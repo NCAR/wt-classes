@@ -8,9 +8,10 @@
 #ifndef WC_MAP_IMAGE_HPP_
 #define WC_MAP_IMAGE_HPP_
 
-#include <Wt/WGlobal>
-#include <Wt/WCompositeWidget>
-#include <Wt/WEvent>
+#include <Wt/WGlobal.h>
+#include <Wt/WCompositeWidget.h>
+#include <Wt/WEvent.h>
+#include <Wt/WSignal.h>
 
 namespace Wt {
 
@@ -27,12 +28,12 @@ Implementation for HTML version is based on
 class MapImage : public WCompositeWidget {
 public:
     /** Signal type for click */
-    typedef Signal<WMouseEvent::Coordinates> ClickSignal;
+    typedef Signal<Wt::Coordinates> ClickSignal;
 
     /** Constructor.
     Ownership of the image is transferred.
     */
-    MapImage(WImage* image, WContainerWidget* parent = 0);
+    MapImage(std::unique_ptr<WImage> image);
 
     /** Event signal emitted when a mouse key was clicked on this widget.
     First template paramater is mouse coordinates relative to the widget.
@@ -55,4 +56,3 @@ private:
 }
 
 #endif
-

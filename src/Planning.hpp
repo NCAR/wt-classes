@@ -8,10 +8,11 @@
 #ifndef WC_PLANNING_SERVER_HPP_
 #define WC_PLANNING_SERVER_HPP_
 
-#include <boost/function.hpp>
+#include <functional>
+#include <memory>
 
-#include <Wt/WObject>
-#include <Wt/WDateTime>
+#include <Wt/WObject.h>
+#include <Wt/WDateTime.h>
 
 #include "Notify.hpp"
 #include "TimeDuration.hpp"
@@ -31,7 +32,7 @@ namespace notify {
 
 \ingroup notify
 */
-typedef boost::shared_ptr<const Task> TaskPtr;
+typedef std::shared_ptr<const Task> TaskPtr;
 
 /** Task abstract class.
 
@@ -73,23 +74,23 @@ private:
 class PlanningServer : public WObject {
 public:
     /** Function applying some function (second arg) at some time (first arg) */
-    typedef boost::function < void(const td::TimeDuration&,
-                                   const boost::function<void()>&) > Scheduler;
+    typedef std::function < void(const td::TimeDuration&,
+                                   const std::function<void()>&) > Scheduler;
 
 #ifdef WC_HAVE_WIOSERVICE
     /** Constructor.
     \see set_io_service()
     */
-    PlanningServer(WIOService* io_service, WObject* p = 0);
+    PlanningServer(WIOService* io_service);
 #endif
 
     /** Constructor */
-    PlanningServer(WObject* p = 0);
+    PlanningServer();
 
     /** Constructor.
     \see set_notification_server()
     */
-    PlanningServer(Server* notification_server, WObject* p = 0);
+    PlanningServer(Server* notification_server);
 
     /** Add a task to the planning list.
     If the \c when is \c inValid() (e.g., Null), no action is performed
@@ -195,7 +196,7 @@ public:
     \see set_scheduler.
     */
     void schedule(const td::TimeDuration& wait,
-                  const boost::function<void()>& func);
+                  const std::function<void()>& func);
 
 private:
     Server* server_;
@@ -213,4 +214,3 @@ private:
 }
 
 #endif
-

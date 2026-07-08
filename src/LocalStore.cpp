@@ -5,7 +5,7 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <Wt/WApplication>
+#include <Wt/WApplication.h>
 
 #include "LocalStore.hpp"
 #include "config.hpp"
@@ -14,8 +14,8 @@ namespace Wt {
 
 namespace Wc {
 
-LocalStore::LocalStore(WContainerWidget* parent):
-    AbstractStore(parent) {
+LocalStore::LocalStore():
+    AbstractStore() {
     resize(0, 0);
     doJavaScript("try {"
                  "window.localStorage.setItem('testkey', 'testvalue');"
@@ -43,7 +43,7 @@ void LocalStore::get_value_of_impl(const std::string& key,
                                    const std::string& def) {
     try_do("var value = window.localStorage"
            ".getItem('" + key + "') || '" + def + "';" +
-           value().createCall("'" + key + "'", "value"));
+           value().createCall(std::initializer_list<std::string>{ "'" + key + "'", "value" }));
 }
 
 void LocalStore::try_do(const std::string& js) {
@@ -55,4 +55,3 @@ void LocalStore::try_do(const std::string& js) {
 }
 
 }
-

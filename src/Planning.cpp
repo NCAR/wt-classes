@@ -10,10 +10,7 @@
 #include <climits>
 #include <vector>
 #include <utility>
-#include "boost-xtime.hpp"
-#include <boost/bind.hpp>
-#include <boost/foreach.hpp>
-#include <boost/thread/tss.hpp>
+#include <memory>
 
 #include "Planning.hpp"
 #include "util.hpp"
@@ -23,13 +20,13 @@
         defined(WC_HAVE_ENVIRONMENT_SERVER))
 
 #if USE_WIOSERVICE
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
-#include <Wt/WServer>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
+#include <Wt/WServer.h>
 #endif
 
 #ifdef WC_HAVE_WIOSERVICE
-#include <Wt/WIOService>
+#include <Wt/WIOService.h>
 #endif
 
 namespace Wt {
@@ -50,8 +47,7 @@ struct ThreadState {
     Tasks queue;
 };
 
-typedef boost::thread_specific_ptr<ThreadState> ThreadStatePtr;
-ThreadStatePtr state_ptr_;
+thread_local std::unique_ptr<ThreadState> state_ptr_;
 
 static ThreadState& state() {
     if (state_ptr_.get() == 0) {
@@ -61,23 +57,23 @@ static ThreadState& state() {
 }
 
 #ifdef WC_HAVE_WIOSERVICE
-PlanningServer::PlanningServer(WIOService* io_service, WObject* p):
-    WObject(p),
+PlanningServer::PlanningServer(WIOService* io_service):
+    WObject(),
     server_(0),
     default_notify_needed_(true) {
     set_io_service(io_service);
 }
 #endif
 
-PlanningServer::PlanningServer(WObject* p):
-    WObject(p),
+PlanningServer::PlanningServer():
+    WObject(),
     server_(0),
     default_notify_needed_(true),
     scheduler_(schedule_action)
 { }
 
-PlanningServer::PlanningServer(Server* notification_server, WObject* p):
-    WObject(p),
+PlanningServer::PlanningServer(Server* notification_server):
+    WObject(),
     server_(notification_server),
     default_notify_needed_(true),
     scheduler_(schedule_action)
@@ -91,7 +87,7 @@ bool PlanningServer::add(TaskPtr task, const WDateTime& when) {
     if (!state().is_processing) {
         TimeDuration wait = when + delay_ - WDateTime::currentDateTime();
         wait = std::max(wait, delay_);
-        schedule(wait, boost::bind(&PlanningServer::process, this, task));
+        schedule(wait, [this, task]() { this->process(task); });
     } else {
         state().queue.push_back(std::make_pair(task, when));
     }
@@ -118,7 +114,7 @@ void PlanningServer::set_scheduler(const Scheduler& scheduler) {
 #ifdef WC_HAVE_WIOSERVICE
 WIOService* PlanningServer::io_service() {
 #if USE_WIOSERVICE
-    return &WServer::instance()->ioService();
+    return &Wt::WServer::instance()->ioService();
 #else
     return 0;
 #endif // USE_WIOSERVICE
@@ -126,7 +122,7 @@ WIOService* PlanningServer::io_service() {
 
 static void WIOService_schedule(WIOService* io_service,
                                 const td::TimeDuration& wait,
-                                const boost::function<void()>& func) {
+                                const std::function<void()>& func) {
     int ms = wait.total_milliseconds();
     if (ms < 0) {
         ms = INT_MAX;
@@ -135,12 +131,12 @@ static void WIOService_schedule(WIOService* io_service,
 }
 
 void PlanningServer::set_io_service(WIOService* io_service) {
-    set_scheduler(boost::bind(WIOService_schedule, io_service, _1, _2));
+    set_scheduler([io_service](const td::TimeDuration& wait, const std::function<void()>& func) { WIOService_schedule(io_service, wait, func); });
 }
 #endif // WC_HAVE_WIOSERVICE
 
 void PlanningServer::schedule(const td::TimeDuration& wait,
-                              const boost::function<void()>& func) {
+                              const std::function<void()>& func) {
     scheduler_(wait, func);
 }
 
@@ -153,7 +149,7 @@ void PlanningServer::process(TaskPtr task) {
         server_->emit(task);
     }
     if (!state().queue.empty()) {
-        BOOST_FOREACH (TaskWhen task_when, state().queue) {
+        for (TaskWhen task_when : state().queue) {
             add(task_when.first, task_when.second);
         }
         state().queue.clear();
@@ -165,4 +161,3 @@ void PlanningServer::process(TaskPtr task) {
 }
 
 }
-

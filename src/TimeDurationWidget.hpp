@@ -8,8 +8,8 @@
 #ifndef WC_TIME_DURATION_WIDGET_HPP_
 #define WC_TIME_DURATION_WIDGET_HPP_
 
-#include <Wt/WGlobal>
-#include <Wt/WCompositeWidget>
+#include <Wt/WGlobal.h>
+#include <Wt/WCompositeWidget.h>
 
 #include "TimeDuration.hpp"
 
@@ -32,10 +32,9 @@ public:
     \param min       The minimum value
     \param value     The default value
     \param max       The maximum value
-    \param parent    The parent widget
     */
     TimeDurationWidget(const TimeDuration& min, const TimeDuration& value,
-                       const TimeDuration& max, WContainerWidget* parent = 0);
+                       const TimeDuration& max);
 
     /** Return the value */
     TimeDuration value() const;
@@ -62,7 +61,8 @@ public:
     WFormWidget* form_widget();
 
 private:
-    TimeDurationWidgetImpl* impl_;
+    TimeDurationWidgetImpl* impl();
+    const TimeDurationWidgetImpl* impl() const;
 };
 
 }
@@ -70,4 +70,3 @@ private:
 }
 
 #endif
-

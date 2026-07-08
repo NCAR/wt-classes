@@ -8,10 +8,10 @@
 #ifndef WC_LOGICAL_PAINTED_WIDGET_HPP_
 #define WC_LOGICAL_PAINTED_WIDGET_HPP_
 
-#include <Wt/WGlobal>
-#include <Wt/WPaintedWidget>
-#include <Wt/WTransform>
-#include <Wt/WRectF>
+#include <Wt/WGlobal.h>
+#include <Wt/WPaintedWidget.h>
+#include <Wt/WTransform.h>
+#include <Wt/WRectF.h>
 
 namespace Wt {
 
@@ -29,7 +29,7 @@ namespace Wc {
 class LogicalPaintedWidget : public WPaintedWidget {
 public:
     /** Constructor */
-    LogicalPaintedWidget(WContainerWidget* parent = 0);
+    LogicalPaintedWidget();
 
     /** Set the window bounding points in logical coordinates.
     \param window  The window.
@@ -117,7 +117,7 @@ protected:
     This method calls the method of WPaintedWidget and
     update_matrices() with previously used preserve_aspect.
     */
-    void layoutSizeChanged(int width, int height);
+    void layoutSizeChanged(int width, int height) override;
 
 private:
     WRectF logical_window_;
@@ -134,4 +134,3 @@ private:
 }
 
 #endif
-

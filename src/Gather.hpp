@@ -9,10 +9,11 @@
 #define WC_GATHER_HPP_
 
 #include <vector>
+#include <functional>
 
-#include <Wt/WGlobal>
-#include <Wt/WObject>
-#include <Wt/WJavaScript>
+#include <Wt/WGlobal.h>
+#include <Wt/WObject.h>
+#include <Wt/WJavaScript.h>
 
 #include "global.hpp"
 
@@ -90,11 +91,10 @@ public:
     const static int MIN_SIGNIFICANT = 100;
 
     /** Function to be applied to each peace of information discovered */
-    typedef boost::function<void(DataType, const std::string&)> DataExplorer;
+    typedef std::function<void(DataType, const std::string&)> DataExplorer;
 
     /** Constructor.
     \param explorer Function to be applied to information discovered.
-    \param parent The parent.
 
     \attention Explorer function can be called all time this object exists.
 
@@ -103,7 +103,7 @@ public:
     (it may be unsafe to browse as HTML).
     The value is cropped to MAX_SIZE chars maximum.
     */
-    Gather(const DataExplorer& explorer, WObject* parent = 0);
+    Gather(const DataExplorer& explorer);
 
     /** Add object dealing with client-only data.
     \note Ownership of the store is not transferred.
@@ -227,4 +227,3 @@ private:
 }
 
 #endif
-

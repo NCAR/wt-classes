@@ -31,7 +31,7 @@ namespace Wc {
 class ConstrainedSpinBox : public WSpinBox {
 public:
     /** Constructor */
-    ConstrainedSpinBox(WContainerWidget* parent = 0);
+    ConstrainedSpinBox();
 
     /** Return the corrected value.
     Same as value(), but it is guaranteed to lie in [minimum(), maximum()].
@@ -48,7 +48,7 @@ public:
 class ConstrainedDoubleSpinBox : public WDoubleSpinBox {
 public:
     /** Constructor */
-    ConstrainedDoubleSpinBox(WContainerWidget* parent = 0);
+    ConstrainedDoubleSpinBox();
 
     /** Return the corrected value.
     Same as value(), but it is guaranteed to lie in [minimum(), maximum()].
@@ -62,4 +62,3 @@ public:
 }
 
 #endif
-

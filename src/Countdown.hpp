@@ -8,11 +8,11 @@
 #ifndef WC_COUNTDOWN_HPP_
 #define WC_COUNTDOWN_HPP_
 
-#include <Wt/WGlobal>
-#include <Wt/WContainerWidget>
-#include <Wt/WJavaScript>
-#include <Wt/WString>
-#include <Wt/WDateTime>
+#include <Wt/WGlobal.h>
+#include <Wt/WContainerWidget.h>
+#include <Wt/WJavaScript.h>
+#include <Wt/WString.h>
+#include <Wt/WDateTime.h>
 
 #include "global.hpp"
 #include "TimeDuration.hpp"
@@ -40,7 +40,6 @@ By default, the widget counts up from now.
 class Countdown : public WContainerWidget {
 public:
     /** Constructor.
-    \param parent The parent.
     \param load_javascript Whether needed jQuery, jQuery Countdown libs should
         be loaded from
     https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js
@@ -50,7 +49,7 @@ public:
         Passing load_javascript = false, this is up to you to
         load all needed libs using WApplication::require().
     */
-    Countdown(WContainerWidget* parent = 0, bool load_javascript = true);
+    Countdown(bool load_javascript = true);
 
     /** Destructor */
     ~Countdown();

@@ -8,7 +8,7 @@
 #ifndef WC_SWF_STORE_HPP_
 #define WC_SWF_STORE_HPP_
 
-#include <Wt/WGlobal>
+#include <Wt/WGlobal.h>
 
 #include "AbstractStore.hpp"
 
@@ -45,7 +45,6 @@ SWFStore example:
 class SWFStore : public AbstractStore {
 public:
     /** Constructor.
-    \param parent The parent widget.
     \param load_javascript Whether needed YUI JavaScript libs should
         be loaded from yui.yahooapis.com. <br>
         Passing load_javascript = false, this is up to you to
@@ -53,17 +52,17 @@ public:
     \param share_data Whether to share data across browsers.
     \param use_compression Whether to compress data when stored.
     */
-    SWFStore(WContainerWidget* parent = 0, bool load_javascript = true,
+    SWFStore(bool load_javascript = true,
              bool share_data = true, bool use_compression = true);
 
 protected:
-    void clear_storage_impl();
+    void clear_storage_impl() override;
 
-    void set_item_impl(const std::string& key, const std::string& value);
+    void set_item_impl(const std::string& key, const std::string& value) override;
 
-    void remove_item_impl(const std::string& key);
+    void remove_item_impl(const std::string& key) override;
 
-    void get_value_of_impl(const std::string& key, const std::string& def);
+    void get_value_of_impl(const std::string& key, const std::string& def) override;
 
 private:
     void async_do(const std::string& js);
@@ -74,4 +73,3 @@ private:
 }
 
 #endif
-

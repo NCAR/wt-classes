@@ -12,8 +12,9 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <list>
 
-#include <Wt/WContainerWidget>
+#include <Wt/WContainerWidget.h>
 
 namespace Wt {
 
@@ -41,7 +42,7 @@ protected:
     }
 };
 
-wApp->internalPathChanged().connect(CachedContents::open_url);
+Wt::WApplication::instance()->internalPathChanged().connect(CachedContents::open_url);
 \endcode
 
 \ingroup url
@@ -49,7 +50,7 @@ wApp->internalPathChanged().connect(CachedContents::open_url);
 class CachedContents : public WContainerWidget {
 public:
     /** Constructor */
-    CachedContents(WContainerWidget* parent = 0);
+    CachedContents();
 
     /** Destructor */
     virtual ~CachedContents();
@@ -142,4 +143,3 @@ private:
 }
 
 #endif
-

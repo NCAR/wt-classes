@@ -21,16 +21,16 @@ namespace Wc {
 class FileView : public StreamView {
 public:
     /** Constructor */
-    FileView(const std::string& filename, WContainerWidget* parent = 0);
+    FileView(const std::string& filename);
 
     /** Constructor */
-    FileView(WContainerWidget* parent = 0);
+    FileView();
 
     /** Set input file */
     void set_filename(const std::string& filename);
 
 protected:
-    WWidget* renderView();
+    std::unique_ptr<WWidget> renderView() override;
 
 private:
     std::string filename_;
@@ -41,4 +41,3 @@ private:
 }
 
 #endif
-

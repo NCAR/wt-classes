@@ -73,13 +73,13 @@ Matrix3x3::Matrix3x3(const ThreeWPoints& from, const ThreeWPoints& to) {
     const WPointF& A = to.a;
     const WPointF& B = to.b;
     const WPointF& C = to.c;
-    Matrix3x3 m(a.x(), a.y(), 1,
+    Matrix3x3 matrix_from(a.x(), a.y(), 1,
                 b.x(), b.y(), 1,
                 c.x(), c.y(), 1);
-    Matrix3x3 M(A.x(), A.y(), 1,
+    Matrix3x3 matrix_to(A.x(), A.y(), 1,
                 B.x(), B.y(), 1,
                 C.x(), C.y(), 1);
-    *this = m.inv() * M;
+    *this = matrix_from.inv() * matrix_to;
 }
 
 double Matrix3x3::det() const {
@@ -121,7 +121,7 @@ Matrix3x3 Matrix3x3::operator*(const Matrix3x3& other) const {
     return result;
 }
 
-Matrix3x3::operator WTransform() const {
+Wt::WTransform Matrix3x3::toWTransform() const {
     return WTransform(m[0][0], m[0][1],
                       m[1][0], m[1][1],
                       m[2][0], m[2][1]);
@@ -144,7 +144,7 @@ std::ostream& Matrix3x3::print(std::ostream& o, const WTransform& v) {
     o << '|';
     o << v.m21() << ',' << v.m22() << ',' << 0;
     o << '|';
-    o << v.dx() << ',' << v.dy() << ',' << 1;
+    o << v.m31() << ',' << v.m32() << ',' << 1;
     o << ')';
     return o;
 }
@@ -152,4 +152,3 @@ std::ostream& Matrix3x3::print(std::ostream& o, const WTransform& v) {
 }
 
 }
-

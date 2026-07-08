@@ -8,7 +8,8 @@
 #ifndef WC_RESOURCE_VIEW_HPP_
 #define WC_RESOURCE_VIEW_HPP_
 
-#include <Wt/WGlobal>
+#include <memory>
+#include <Wt/WGlobal.h>
 
 #include "StreamView.hpp"
 
@@ -23,16 +24,16 @@ namespace Wc {
 class ResourceView : public StreamView {
 public:
     /** Constructor */
-    ResourceView(WResource* resource, WContainerWidget* parent = 0);
+    ResourceView(WResource* resource);
 
     /** Constructor */
-    ResourceView(WContainerWidget* parent = 0);
+    ResourceView();
 
     /** Set resource */
     void set_resource(WResource* resource);
 
 protected:
-    WWidget* renderView();
+    std::unique_ptr<WWidget> renderView() override;
 
 private:
     WResource* resource_;
@@ -43,4 +44,3 @@ private:
 }
 
 #endif
-

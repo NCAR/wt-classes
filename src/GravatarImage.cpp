@@ -8,14 +8,14 @@
 #include "config.hpp"
 
 #include <sstream>
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/algorithm/string/case_conv.hpp>
+#include <algorithm>
+#include <cctype>
 
 #ifdef WC_HAVE_WLINK
-#include <Wt/WLink>
+#include <Wt/WLink.h>
 #endif
-#include <Wt/WApplication>
-#include <Wt/WEnvironment>
+#include <Wt/WApplication.h>
+#include <Wt/WEnvironment.h>
 
 #include "GravatarImage.hpp"
 #include "util.hpp"
@@ -27,9 +27,20 @@ namespace Wc {
 const GravatarImage::Rating GRAVATAR_DEFAULT_RATING = GravatarImage::G;
 const short GRAVATAR_DEFAULT_SIZE = 80;
 
-GravatarImage::GravatarImage(const std::string& email,
-                             WContainerWidget* parent):
-    WImage(parent),
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+}
+
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+GravatarImage::GravatarImage(const std::string& email):
+    WImage(),
     size_(GRAVATAR_DEFAULT_SIZE),
     rating_(GRAVATAR_DEFAULT_RATING),
     force_default_(false),
@@ -39,10 +50,11 @@ GravatarImage::GravatarImage(const std::string& email,
 }
 
 void GravatarImage::set_email(const std::string& email) {
-    using namespace boost::algorithm;
     email_ = email;
-    trim(email_);
-    to_lower(email_);
+    ltrim(email_);
+    rtrim(email_);
+    std::transform(email_.begin(), email_.end(), email_.begin(),
+        [](unsigned char c){ return std::tolower(c); });
     update_url();
 }
 
@@ -117,7 +129,7 @@ std::string GravatarImage::url(const std::string& email, short size,
     url << ".jpg";
     url << "?";
     if (size != GRAVATAR_DEFAULT_SIZE) {
-        url << "s=" << TO_S(size) << "&";
+        url << "s=" << std::to_string(size) << "&";
     }
     if (!default_url.empty()) {
         url << "d=" << urlencode(default_url) << "&";
@@ -132,8 +144,8 @@ std::string GravatarImage::url(const std::string& email, short size,
 }
 
 void GravatarImage::update_url() {
-    setImageRef(url(email_, size_, force_default_, default_,
-                    rating_, secure_requests_));
+    setImageLink(Wt::WLink(url(email_, size_, force_default_, default_,
+                    rating_, secure_requests_)));
 }
 
 void GravatarImage::resize_image(const WLength& size) {
@@ -159,4 +171,3 @@ std::string GravatarImage::rating_str() const {
 }
 
 }
-

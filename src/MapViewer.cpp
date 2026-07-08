@@ -9,42 +9,40 @@
 
 #include <cmath>
 #include <iomanip>
+#include <numbers>
 
-#include <boost/math/constants/constants.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
-#include <boost/bind.hpp>
 
-#include <Wt/WApplication>
-#include <Wt/WLength>
-#include <Wt/WString>
-#include <Wt/WEnvironment>
-#include <Wt/WGridLayout>
-#include <Wt/WVBoxLayout>
-#include <Wt/WHBoxLayout>
-#include <Wt/WContainerWidget>
-#include <Wt/WImage>
-#include <Wt/WLineEdit>
-#include <Wt/WText>
-#include <Wt/WPointF>
-#include <Wt/WPushButton>
-#include <Wt/WCssStyleSheet>
-#include <Wt/WScrollArea>
+#include <Wt/WApplication.h>
+#include <Wt/WLength.h>
+#include <Wt/WString.h>
+#include <Wt/WEnvironment.h>
+#include <Wt/WGridLayout.h>
+#include <Wt/WVBoxLayout.h>
+#include <Wt/WHBoxLayout.h>
+#include <Wt/WContainerWidget.h>
+#include <Wt/WImage.h>
+#include <Wt/WLineEdit.h>
+#include <Wt/WText.h>
+#include <Wt/WPointF.h>
+#include <Wt/WPushButton.h>
+#include <Wt/WCssStyleSheet.h>
 #ifdef WC_HAVE_WHTTP_MESSAGE
-#include <Wt/Http/Client>
-#include <Wt/Http/Message>
+#include <Wt/Http/Client.h>
+#include <Wt/Http/Message.h>
 #endif // WC_HAVE_WHTTP_MESSAGE
 #ifdef WC_HAVE_JSON_OBJECT
-#include <Wt/Json/Object>
-#include <Wt/Json/Value>
-#include <Wt/Json/Array>
-#include <Wt/Json/Parser>
+#include <Wt/Json/Object.h>
+#include <Wt/Json/Value.h>
+#include <Wt/Json/Array.h>
+#include <Wt/Json/Parser.h>
 #endif // WC_HAVE_JSON_OBJECT
 
 #ifndef WC_HAVE_WCOMPOSITEWIDGET_IMPLEMENTATION
 // FIXME nasty public morozov
 #define private friend class Wt::Wc::MapViewer; private
-#include <Wt/WCompositeWidget>
+#include <Wt/WCompositeWidget.h>
 #undef private
 #define implementation() Wt::WCompositeWidget::impl_
 #endif // WC_HAVE_WCOMPOSITEWIDGET_IMPLEMENTATION
@@ -53,31 +51,28 @@
 #include "util.hpp"
 #include "MapImage.hpp"
 
-namespace Wt {
+namespace Wt::Wc {
 
-namespace Wc {
-
-const double pi = boost::math::constants::pi<double>();
+const double pi = std::numbers::pi;
 const std::string nurl = "http://nominatim.openstreetmap.org/"
                          "search?format=json&q=";
 
 const std::string tzurl = "http://ws.geonames.org/timezoneJSON?";
 // lat=xx.xx&lng=xxx.xx
 
-MapViewer::MapViewer(Wt::WContainerWidget* p):
-    Wt::WCompositeWidget(p), zoom_(1), sp_title_("search"),
+MapViewer::MapViewer():
+    Wt::WCompositeWidget(), zoom_(1), sp_title_("search"),
     pos_(std::make_pair(Coordinate(0, 0), "")), jclicked_(this, "click"),
-    found_(0), jfound_(0), chosen_(0), jchosen_(0), html_found_signal_(0),
-    found_signal_(0), jtz_signal_(0), tz_signal_(0), markers_(false),
+    markers_(false),
     smp_(false), html_search_panel_(false), enable_updates_(false),
-    sr_button_(0), sr_cw_(0)
+    sr_button_(nullptr), sr_cw_(nullptr)
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
-    , http_(0), tz_http_(0)
+    , http_(nullptr), tz_http_(nullptr)
 #endif
 {
     wApp->require("http://openlayers.org/api/OpenLayers.js",
                   "OpenLayers");
-    setImplementation(new Wt::WContainerWidget());
+    setImplementation(std::make_unique<Wt::WContainerWidget>());
     get_impl()->setStyleClass("impl_cw");
     wApp->styleSheet().addRule(".impl_cw", "position:relative;");
     map_name_ = "map_" + get_impl()->id();
@@ -88,12 +83,6 @@ MapViewer::MapViewer(Wt::WContainerWidget* p):
 
 MapViewer::~MapViewer() {
     destroy_map();
-    delete jfound_;
-    delete jchosen_;
-    delete chosen_;
-    delete html_found_signal_;
-    delete jtz_signal_;
-    delete tz_signal_;
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
     delete http_;
     delete tz_http_;
@@ -103,16 +92,14 @@ MapViewer::~MapViewer() {
 void MapViewer::update_impl() {
     setLayoutSizeAware(true);
     if (!implementation()) {
-        setImplementation(new WContainerWidget());
+        setImplementation(std::make_unique<Wt::WContainerWidget>());
     }
     get_impl()->clear();
     if (js()) {
         std::string map_created_str;
         map_created_str = "new OpenLayers.Map('"
                           + get_impl()->id() + "')";
-        typedef void (MapViewer::*M)(const Coordinate&);
-        M click_on = &MapViewer::click_on;
-        jclicked().connect(boost::bind(click_on, this, _1));
+        jclicked().connect([this](const Coordinate& c) { this->click_on(c); });
         doJavaScript(store_jsv(map_name_, map_created_str));
         add_osm_layer(layer_name_);
         set_click_signal_();
@@ -170,7 +157,7 @@ void MapViewer::set_center(const Coordinate& center, int zoom) {
         std::stringstream strm;
         strm << store_jsv("lonLatOf_" + map_name_,
                           get_lonlat_jsc(center))
-             << store_jsv("zoomOf_" + map_name_, TO_S(zoom_))
+             << store_jsv("zoomOf_" + map_name_, std::to_string(zoom_))
              << get_stored_jsv(map_name_) << ".setCenter("
              << get_stored_jsv("lonLatOf_" + map_name_)
              << ", " << get_stored_jsv("zoomOf_" + map_name_) + ");";
@@ -264,13 +251,13 @@ void MapViewer::zoom_to(int level) {
     }
     if (js()) {
         doJavaScript(get_stored_jsv(map_name_) +
-                     ".zoomTo(" + TO_S(level) + ");");
+                     ".zoomTo(" + std::to_string(level) + ");");
     } else {
         html_v(get_impl());
     }
 }
 
-WContainerWidget* MapViewer::get_html_map() {
+std::unique_ptr<Wt::WContainerWidget> MapViewer::get_html_map() {
     std::vector<int>  rmns;
     int wwidth = get_impl()->width().value();
     int wheight = get_impl()->height().value();
@@ -327,11 +314,11 @@ WContainerWidget* MapViewer::get_html_map() {
     }
     //
     std::vector<int> img_margin(4, 0);
-    WContainerWidget* gcw = new WContainerWidget();
+    auto gcw = std::make_unique<Wt::WContainerWidget>();
+    auto gl = gcw->setLayout(std::make_unique<Wt::WGridLayout>());
     wApp->styleSheet().addRule(".mapContainer",
                                "position:relative;top:0px;");
     gcw->setStyleClass("mapContainer");
-    WGridLayout* gl = new WGridLayout();
     gl->setHorizontalSpacing(0);
     gl->setVerticalSpacing(0);
     gl->setContentsMargins(0, 0, 0, 0);
@@ -342,7 +329,7 @@ WContainerWidget* MapViewer::get_html_map() {
         X = 0;
     }
     for (int i = 0; i < row; i++) {
-        std::string ystd = TO_S(y);
+        std::string ystd = std::to_string(y);
         bool vori = false;
         int cw_h = 256;
         img_margin[3] = 0;
@@ -359,11 +346,11 @@ WContainerWidget* MapViewer::get_html_map() {
         }
         int x = X;
         for (int j = 0; j < column; j++) {
-            std::string xstd = TO_S(x);
-            WContainerWidget* cw = new WContainerWidget();
-            WImage* img = new WImage("http://a.tile.openstreetmap.org/" +
-                                     TO_S(zoom_) +
-                                     "/" + xstd + "/" + ystd + ".png");
+            auto cw = std::make_unique<Wt::WContainerWidget>();
+            std::string xstd = std::to_string(x);
+            auto img = std::make_unique<Wt::WImage>("http://a.tile.openstreetmap.org/" +
+                                                    std::to_string(zoom_) + "/" +
+                                                    xstd + "/" + ystd + ".png");
             bool hori = false;
             int cw_w = 256;
             img_margin[0] = 0;
@@ -380,22 +367,22 @@ WContainerWidget* MapViewer::get_html_map() {
             }
             cw->resize(cw_w, cw_h);
             if (hori || vori) {
-                cw->setOverflow(WContainerWidget::OverflowHidden);
+                cw->setOverflow(Wt::Overflow::Hidden);
                 //
                 for (int k = 0; k < 4; k++) {
                     img->setMargin(img_margin[k], get_side(k));
                 }
             }
-            MapImage* map_img = new MapImage(img, cw);
-            map_img->clicked().connect(boost::bind(&MapViewer::click_on,
-                                                   this, WPoint(x, y), _1));
-            gl->addWidget(cw, i, j);
+            auto map_img = std::make_unique<MapImage>(std::move(img));
+            map_img->clicked().connect([this, x, y]() { this->click_on(Coordinate(x, y)); });
+            
+            gl->addWidget(std::move(map_img), i, j);
             x++;
         }
         y++;
     }
     gcw->resize(w, h);
-    gcw->setLayout(gl);
+
     return gcw;
 }
 
@@ -403,25 +390,25 @@ void MapViewer::html_markers_view(WContainerWidget* cw) {
     int cout = 0;
     wApp->styleSheet().addRule(".mvMarkers",
                                "position:absolute;z-index:2013;");
-    BOOST_FOREACH (const GeoNode& mn, marker_nodes_) {
+    for (const auto& mn : marker_nodes_) {
         if (is_map_contained(mn.first)) {
             WPoint coords = w2px(mn.first);
-            WImage* link_img = new WImage(marker_img_url_, cw);
+            auto link_img = std::make_unique<Wt::WImage>(marker_img_url_);
             link_img->setStyleClass("mvMarkers");
-            link_img->setId("mvMarker" + TO_S(cout));
-            wApp->styleSheet().addRule("#mvMarker" + TO_S(cout),
-                                       "top:" + TO_S(coords.y() - 25) + "px;"
-                                       "left:" + TO_S(coords.x() - 11) + "px;");
+            link_img->setId("mvMarker" + std::to_string(cout));
+            wApp->styleSheet().addRule("#mvMarker" + std::to_string(cout),
+                                       "top:" + std::to_string(coords.y() - 25) + "px;"
+                                       "left:" + std::to_string(coords.x() - 11) + "px;");
+            cw->addWidget(std::move(link_img));
         }
         cout++;
     }
 }
 
-WContainerWidget* MapViewer::get_html_osm_attribution() {
-    WContainerWidget* cw = new WContainerWidget();
-    cw->setContentAlignment(AlignRight);
-    new WText("Data CC-By-SA by <b>OpenStreetMap</b>",
-              cw);
+std::unique_ptr<Wt::WContainerWidget> MapViewer::get_html_osm_attribution() {
+    auto cw = std::make_unique<Wt::WContainerWidget>();
+    cw->setContentAlignment(Wt::AlignmentFlag::Right);
+    cw->addWidget(std::make_unique<Wt::WText>("Data CC-By-SA by <b>OpenStreetMap</b>"));
     cw->setStyleClass("olControlAttribution");
     wApp->styleSheet().addRule(".olControlAttribution",
                                "position:absolute;"
@@ -430,89 +417,96 @@ WContainerWidget* MapViewer::get_html_osm_attribution() {
     return cw;
 }
 
-WContainerWidget* MapViewer::get_html_control_panel() {
-    WContainerWidget* cw = new WContainerWidget(get_impl());
-    WVBoxLayout* vl = new WVBoxLayout(cw);
+std::unique_ptr<Wt::WContainerWidget> MapViewer::get_html_control_panel() {
+    auto cw = std::make_unique<Wt::WContainerWidget>();
+    auto vl = std::make_unique<Wt::WVBoxLayout>();
     vl->setSpacing(0);
     vl->setContentsMargins(0, 0, 0, 0);
-    WContainerWidget* north_cw = new WContainerWidget();
+    
+    auto north_cw = std::make_unique<Wt::WContainerWidget>();
     north_cw->resize(WLength(), 18);
-    north_cw->setContentAlignment(AlignCenter);
-    WImage* img_north = new WImage("http://openlayers.org/api/img/"
-                                   "north-mini.png", north_cw);
-    img_north->clicked().connect(boost::bind(&MapViewer::top_shift,
-                                 this, 0.34));
-    vl->addWidget(north_cw);
-    WContainerWidget* west_east_cw = new WContainerWidget();
+    north_cw->setContentAlignment(Wt::AlignmentFlag::Center);
+    auto img_north = std::make_unique<Wt::WImage>("http://openlayers.org/api/img/north-mini.png");
+    img_north->clicked().connect([this]() { this->top_shift(0.34); });
+    north_cw->addWidget(std::move(img_north));
+    vl->addWidget(std::move(north_cw));
+    
+    auto west_east_cw = std::make_unique<Wt::WContainerWidget>();
     west_east_cw->resize(WLength(), 18);
-    west_east_cw->setContentAlignment(AlignCenter);
-    WImage* img_west = new WImage("http://openlayers.org/api/img/west-mini.png",
-                                  west_east_cw);
-    img_west->clicked().connect(boost::bind(&MapViewer::left_shift,
-                                            this, 0.34));
-    WImage* img_east = new WImage("http://openlayers.org/api/img/east-mini.png",
-                                  west_east_cw);
-    img_east->clicked().connect(boost::bind(&MapViewer::right_shift,
-                                            this, 0.34));
-    vl->addWidget(west_east_cw);
-    WContainerWidget* south_cw = new WContainerWidget();
+    west_east_cw->setContentAlignment(Wt::AlignmentFlag::Center);
+    auto img_west = std::make_unique<Wt::WImage>("http://openlayers.org/api/img/west-mini.png");
+    img_west->clicked().connect([this]() { this->left_shift(0.34); });
+    west_east_cw->addWidget(std::move(img_west));
+    
+    auto img_east = std::make_unique<Wt::WImage>("http://openlayers.org/api/img/east-mini.png");
+    img_east->clicked().connect([this]() { this->right_shift(0.34); });
+    west_east_cw->addWidget(std::move(img_east));
+    vl->addWidget(std::move(west_east_cw));
+    
+    auto south_cw = std::make_unique<Wt::WContainerWidget>();
     south_cw->resize(WLength(), 18);
-    south_cw->setContentAlignment(AlignCenter);
-    WImage* img_south = new WImage("http://openlayers.org/api/img/"
-                                   "south-mini.png", south_cw);
-    img_south->clicked().connect(boost::bind(&MapViewer::bottom_shift,
-                                 this, 0.34));
-    vl->addWidget(south_cw);
-    vl->addWidget(new WBreak());
-    WContainerWidget* zoom_plus_cw = new WContainerWidget();
+    south_cw->setContentAlignment(Wt::AlignmentFlag::Center);
+    auto img_south = std::make_unique<Wt::WImage>("http://openlayers.org/api/img/south-mini.png");
+    img_south->clicked().connect([this]() { this->bottom_shift(0.34); });
+    south_cw->addWidget(std::move(img_south));
+    vl->addWidget(std::move(south_cw));
+    
+    vl->addWidget(std::make_unique<Wt::WBreak>());
+    
+    auto zoom_plus_cw = std::make_unique<Wt::WContainerWidget>();
     zoom_plus_cw->resize(WLength(), 18);
-    zoom_plus_cw->setContentAlignment(AlignCenter);
-    WImage* img_zoom_plus = new WImage("http://openlayers.org/api/img/"
-                                       "zoom-plus-mini.png", zoom_plus_cw);
-    img_zoom_plus->clicked().connect(boost::bind(&MapViewer::zoom_in, this));
-    vl->addWidget(zoom_plus_cw);
-    WContainerWidget* zoom_minus_cw = new WContainerWidget();
+    zoom_plus_cw->setContentAlignment(Wt::AlignmentFlag::Center);
+    auto img_zoom_plus = std::make_unique<Wt::WImage>("http://openlayers.org/api/img/zoom-plus-mini.png");
+    img_zoom_plus->clicked().connect([this]() { this->zoom_in(); });
+    zoom_plus_cw->addWidget(std::move(img_zoom_plus));
+    vl->addWidget(std::move(zoom_plus_cw));
+    
+    auto zoom_minus_cw = std::make_unique<Wt::WContainerWidget>();
     zoom_minus_cw->resize(WLength(), 18);
-    zoom_minus_cw->setContentAlignment(AlignCenter);
-    WImage* img_zoom_minus = new WImage("http://openlayers.org/api/img/"
-                                        "zoom-minus-mini.png", zoom_minus_cw);
-    img_zoom_minus->clicked().connect(boost::bind(&MapViewer::zoom_out, this));
-    vl->addWidget(zoom_minus_cw);
+    zoom_minus_cw->setContentAlignment(Wt::AlignmentFlag::Center);
+    auto img_zoom_minus = std::make_unique<Wt::WImage>("http://openlayers.org/api/img/zoom-minus-mini.png");
+    img_zoom_minus->clicked().connect([this]() { this->zoom_out(); });
+    zoom_minus_cw->addWidget(std::move(img_zoom_minus));
+    vl->addWidget(std::move(zoom_minus_cw));
+    
     wApp->styleSheet().addRule(".menuControlPanel", "position:absolute;"
                                "width:60px;top:8px;left:0px;z-index:2013;");
     cw->setStyleClass("menuControlPanel");
+    cw->setLayout(std::move(vl));
     return cw;
 }
 
-WContainerWidget* MapViewer::html_search_panel() {
-    WContainerWidget* cw = new WContainerWidget(get_impl());
-    WVBoxLayout* vl = new WVBoxLayout(cw);
+std::unique_ptr<Wt::WContainerWidget> MapViewer::html_search_panel() {
+    auto cw = std::make_unique<Wt::WContainerWidget>();
+    auto vl = std::make_unique<Wt::WVBoxLayout>();
     vl->setSpacing(0);
     vl->setContentsMargins(0, 0, 0, 0);
     //
     //
-    WLineEdit* edit = new WLineEdit();
+    auto edit = std::make_unique<Wt::WLineEdit>();
     edit->setText(sp_title_);
     edit->resize(90, WLength());
     //
-    WPushButton* button_edit = new WPushButton("ok");
+    auto button_edit = std::make_unique<Wt::WPushButton>("ok");
+    button_edit->clicked().connect([this, search_str = edit->text()]() { this->panel_html_search(search_str); });
     //
-    WHBoxLayout* hl = new WHBoxLayout();
+    auto hl = std::make_unique<Wt::WHBoxLayout>();
     hl->setSpacing(0);
     hl->setContentsMargins(0, 0, 0, 0);
-    hl->addWidget(edit, 0, AlignMiddle);
-    hl->addWidget(button_edit, 0, AlignMiddle);
+    hl->addWidget(std::move(edit), 0, Wt::AlignmentFlag::Middle);
+    hl->addWidget(std::move(button_edit), 0, Wt::AlignmentFlag::Middle);
     //
-    sr_button_ = new WPushButton("ok");
+    auto sr_button_ptr = std::make_unique<Wt::WPushButton>("ok");
+    sr_button_ = sr_button_ptr.get();
     sr_button_->hide();
     //
-    sr_cw_ = new WContainerWidget();
+    auto sr_cw_ptr = std::make_unique<Wt::WContainerWidget>();
+    sr_cw_ = sr_cw_ptr.get();
     //
-    vl->addWidget(sr_button_, 0, AlignRight);
-    vl->addWidget(sr_cw_, 0, AlignRight);
-    vl->addLayout(hl, 0, AlignRight);
-    button_edit->clicked().connect(boost::bind(&MapViewer::panel_html_search,
-                                   this, edit));
+    vl->addWidget(std::move(sr_button_ptr), 0, Wt::AlignmentFlag::Right);
+    vl->addWidget(std::move(sr_cw_ptr), 0, Wt::AlignmentFlag::Right);
+    vl->addLayout(std::move(hl), 0, Wt::AlignmentFlag::Right);
+    
     wApp->styleSheet().addRule(".mvSearchPanel", "position:absolute;"
                                "bottom:25px;right:10px;z-index:2014;");
     cw->setStyleClass("mvSearchPanel");
@@ -520,21 +514,22 @@ WContainerWidget* MapViewer::html_search_panel() {
     if (sp_fns_.size() != 0) {
         html_search_present(sp_fns_);
     }
+    cw->setLayout(std::move(vl));
     return cw;
 }
 
 void MapViewer::html_v(WContainerWidget* cw) {
     cw->clear();
-    WContainerWidget* map_cw = new WContainerWidget();
+    auto map_cw = std::make_unique<Wt::WContainerWidget>();
     map_cw->setStyleClass("map_cw");
     wApp->styleSheet().addRule(".map_cw", "position:relative;");
     if (markers_ && zoom_ > 4) {
-        html_markers_view(map_cw);
+        html_markers_view(map_cw.get());
     }
     map_cw->addWidget(get_html_map());
-    cw->setContentAlignment(AlignTop);
+    cw->setContentAlignment(Wt::AlignmentFlag::Top);
     cw->addWidget(get_html_control_panel());
-    cw->addWidget(map_cw);
+    cw->addWidget(std::move(map_cw));
     cw->addWidget(get_html_osm_attribution());
     if (html_search_panel_) {
         cw->addWidget(html_search_panel());
@@ -543,16 +538,16 @@ void MapViewer::html_v(WContainerWidget* cw) {
 
 Wt::Signal<MapViewer::GeoNodes>& MapViewer::found() {
     if (!found_) {
-        found_ = new Wt::Signal<GeoNodes>();
+        found_ = std::make_unique<Wt::Signal<GeoNodes>>();
     }
     return *found_;
 }
 
 void MapViewer::search(const WString& query) {
     if (!found_) {
-        found_ = new Signal<GeoNodes>();
+        found_ = std::make_unique<Wt::Signal<GeoNodes>>();
     }
-    search(query, found_);
+    search(query, found_.get());
 }
 
 void MapViewer::search(const WString& query,
@@ -560,17 +555,15 @@ void MapViewer::search(const WString& query,
     found_signal_ = signal;
     if (js()) {
         if (!jfound_) {
-            jfound_ = new JSignal<std::string>(this, "search");
+            jfound_ = std::make_unique<Wt::JSignal<std::string>>(this, "search");
         }
-        typedef void (MapViewer::*M)(const std::string&);
-        M nominatim_data_parser = &MapViewer::nominatim_data_parser;
-        jfound().connect(boost::bind(nominatim_data_parser, this, _1));
+        jfound().connect([this](const std::string& str) { this->nominatim_data_parser(str); });
         doJavaScript(set_ajax_action(nurl + query.toUTF8(),
-                                     jfound().createCall("str")));
+                                     jfound().createCall(std::initializer_list<std::string>{"str"})));
     } else {
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
-        http_ = new Http::Client(this);
-        http_->done().connect(this, &MapViewer::nominatim_data_parser);
+        http_ = new Http::Client(this); // Assuming this is cleaned up elsewhere
+        http_->done().connect([this](std::error_code err, const Wt::Http::Message& msg) { this->nominatim_data_parser(err, msg); });
         if (http_->get(nurl + query.toUTF8())) {
         }
 #endif // WC_HAVE_WHTTP_MESSAGE
@@ -579,28 +572,37 @@ void MapViewer::search(const WString& query,
 
 const MapViewer::GeoNode
 MapViewer::found_node_parser(const std::string& data) const {
-    std::vector<std::string> str_fn, str_coords;
-    boost::split(str_fn, data, boost::is_any_of("&"));
-    boost::split(str_coords, str_fn[0], boost::is_any_of(" "));
-    double lat = boost::lexical_cast<double>(str_coords[0]);
-    double lng = boost::lexical_cast<double>(str_coords[1]);
+    auto amp_pos = data.find('&');
+    std::string str_coords = data.substr(0, amp_pos);
+    std::string str_fn = (amp_pos != std::string::npos) ? data.substr(amp_pos + 1) : "";
+    
+    auto space_pos = str_coords.find(' ');
+    std::string lat_str = str_coords.substr(0, space_pos);
+    std::string lng_str = (space_pos != std::string::npos) ? str_coords.substr(space_pos + 1) : "";
+    
+    double lat = std::stod(lat_str);
+    double lng = std::stod(lng_str);
+    
     lng = coord_control(lng);
     lat = coord_control(lat, "lat");
     return std::make_pair(Coordinate(lat, lng),
-                          WString().fromUTF8(str_fn[1]));
+                          WString().fromUTF8(str_fn));
 }
 
 void MapViewer::nominatim_data_parser(const std::string& data) {
     GeoNodes found_nodes;
-    std::vector<std::string> str_fns;
-    if (data.find("#") != std::string::npos) {
-        boost::split(str_fns, data, boost::is_any_of("#"));
-    } else {
-        str_fns.push_back(data);
+    size_t start = 0;
+    size_t end = data.find('#');
+    
+    while (end != std::string::npos) {
+        found_nodes.push_back(found_node_parser(data.substr(start, end - start)));
+        start = end + 1;
+        end = data.find('#', start);
     }
-    BOOST_FOREACH (std::string fn, str_fns) {
-        found_nodes.push_back(found_node_parser(fn));
+    if (start < data.length()) {
+        found_nodes.push_back(found_node_parser(data.substr(start)));
     }
+    
     found_signal_->emit(found_nodes);
 }
 
@@ -610,7 +612,7 @@ const std::string MapViewer::cipher(const std::string& str) {
 
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
 const MapViewer::GeoNodes
-MapViewer::http_request_parser(const boost::system::error_code& e,
+MapViewer::http_request_parser(std::error_code e,
                                const Http::Message& response) {
     GeoNodes found_nodes;
     if (!e) {
@@ -623,7 +625,7 @@ MapViewer::http_request_parser(const boost::system::error_code& e,
             return found_nodes;
         }
         const Json::Array& arr = val;
-        BOOST_FOREACH (Json::Value val1, arr) {
+        for (const auto& val1 : arr) {
             try {
                 const Json::Object obj = val1;
                 const WString& display_name = obj.get("display_name");
@@ -646,7 +648,7 @@ MapViewer::http_request_parser(const boost::system::error_code& e,
     return found_nodes;
 }
 
-void MapViewer::nominatim_data_parser(const boost::system::error_code& e,
+void MapViewer::nominatim_data_parser(std::error_code e,
                                       const Http::Message& response) {
     found_signal_->emit(http_request_parser(e, response));
 }
@@ -699,7 +701,7 @@ const std::string MapViewer::get_search_js_action() const {
          << "$('#mvSearchResult').empty();"
          << "$('#mvSearchResult').hide();"
          << "$('#bok').hide();"
-         << jchosen_->createCall("choice")
+         << jchosen_->createCall({"choice"}) // Wt4 requires initializer list
          << "if(smarkers){" + get_stored_jsv("smarkers") + ".destroy();"
          << "smarkers=false;}"
          << "$('#sq').attr('value',title);});"
@@ -728,7 +730,7 @@ const std::string MapViewer::get_search_js_action() const {
 
 void MapViewer::set_search_panel(const WString& title) {
     if (!chosen_) {
-        chosen_ = new Signal<GeoNode>();
+        chosen_ = std::make_unique<Wt::Signal<GeoNode>>();
     }
     if (title != "") {
         sp_title_ = title.toUTF8();
@@ -753,9 +755,9 @@ void MapViewer::set_search_panel(const WString& title) {
                                "font-size:12px;");
     if (js()) {
         if (!jchosen_) {
-            jchosen_ = new JSignal<std::string>(this, "chosen");
+            jchosen_ = std::make_unique<Wt::JSignal<std::string>>(this, "chosen");
         }
-        jchosen_->connect(this, &MapViewer::choice_data_parser);
+        jchosen_->connect([this](const std::string& data) { this->choice_data_parser(data); });
         wApp->styleSheet().addRule("#mvSearchPanel",
                                    "position:absolute;"
                                    "bottom:20px;"
@@ -792,20 +794,21 @@ void MapViewer::set_search_panel(const WString& title) {
     }
 }
 
-void MapViewer::panel_html_search(WLineEdit* edit) {
+void MapViewer::panel_html_search(const Wt::WString& search_str) {
     if (!html_found_signal_) {
-        html_found_signal_ = new Signal<GeoNodes>();
+        html_found_signal_ = std::make_unique<Wt::Signal<GeoNodes>>();
     }
-    search(edit->text(), html_found_signal_);
+    search(search_str, html_found_signal_.get());
     sp_fns_.clear();
-    html_found_signal_->connect(this,
-                                &MapViewer::html_search_present);
+    html_found_signal_->connect([this](const GeoNodes& ns) { this->html_search_present(ns); });
     smp_ = true;
     set_html_result_visible(false);
-    WPushButton* refresh_button = new WPushButton(sr_cw_);
+    
+    auto refresh_button = std::make_unique<Wt::WPushButton>();
     refresh_button->setIcon("http://www.gettyicons.com/"
                             "free-icons/112/must-have/png/16/refresh_16.png");
-    refresh_button->clicked().connect(this, &MapViewer::simple_refresh);
+    refresh_button->clicked().connect([this]() { this->simple_refresh(); });
+    sr_cw_->addWidget(std::move(refresh_button));
     wApp->styleSheet().addRule(".mvSearchPanel", "bottom:30px;");
 }
 
@@ -816,39 +819,52 @@ void MapViewer::html_search_present(const MapViewer::GeoNodes& ns) {
     if (sp_fns_.size() == 0) {
         sp_fns_ = ns;
     }
-    //
+    
     int cout = 0;
-    WVBoxLayout* vl = new WVBoxLayout();
+    
+    // Wt4 Refactor: WScrollArea -> WContainerWidget with Overflow::Auto
+    auto scroll = std::make_unique<Wt::WContainerWidget>();
+    scroll->resize(sr_cw_->width(), sr_cw_->height());
+    scroll->setOverflow(Wt::Overflow::Auto);
+    
+    auto cw = std::make_unique<Wt::WContainerWidget>();
+    cw->setId("mvSearchResult");
+    cw->setContentAlignment(Wt::AlignmentFlag::Right);
+    
+    // Construct layout, capture pointer, and set it on the widget immediately
+    auto vl_unique = std::make_unique<Wt::WVBoxLayout>();
+    Wt::WVBoxLayout* vl = vl_unique.get();
     vl->setContentsMargins(0, 0, 0, 0);
-    BOOST_FOREACH (const GeoNode& n, ns) {
-        WContainerWidget* n_cw = new WContainerWidget();
-        WText* d_t = new WText(n.second, XHTMLText);
-        d_t->setStyleClass("mvSearchText");
-        //
+    cw->setLayout(std::move(vl_unique));
+    
+    for (const auto& n : ns) {
+        auto n_cw = std::make_unique<Wt::WContainerWidget>();
         n_cw->setStyleClass("mvSearchResultNode");
-        WHBoxLayout* hl = new WHBoxLayout();
+        n_cw->setContentAlignment(Wt::AlignmentFlag::Center);
+        
+        auto hl_unique = std::make_unique<Wt::WHBoxLayout>();
+        Wt::WHBoxLayout* hl = hl_unique.get();
         hl->setContentsMargins(0, 0, 0, 0);
-        WImage* link_img = new WImage("http://www.openlayers.org/"
-                                      "dev/img/marker.png");
-        link_img->clicked().connect(boost::bind(&MapViewer::click_node,
-                                                this, n, cout));
-        hl->addWidget(link_img, 0, AlignCenter);
-        hl->addWidget(d_t, 0, AlignCenter);
-        n_cw->setLayout(hl, AlignCenter);
-        vl->addWidget(n_cw, 0, AlignCenter);
+        n_cw->setLayout(std::move(hl_unique));
+        
+        auto link_img = std::make_unique<Wt::WImage>("http://www.openlayers.org/dev/img/marker.png");
+        link_img->clicked().connect([this, n, cout]() { this->click_node(n, cout); });
+        hl->addWidget(std::move(link_img), 0, Wt::AlignmentFlag::Center);
+        
+        auto d_t = std::make_unique<Wt::WText>(n.second, Wt::TextFormat::XHTML);
+        d_t->setStyleClass("mvSearchText");
+        hl->addWidget(std::move(d_t), 0, Wt::AlignmentFlag::Center);
+        
+        vl->addWidget(std::move(n_cw), 0, Wt::AlignmentFlag::Center);
         cout++;
     }
-    sr_button_->clicked().connect(this, &MapViewer::html_searh_chosen);
-    WContainerWidget* cw = new WContainerWidget();
-    cw->setId("mvSearchResult");
-    cw->setLayout(vl, AlignRight);
-    WScrollArea* scroll = new WScrollArea();
-    scroll->setWidget(cw);
-    scroll->resize(sr_cw_->width(), sr_cw_->height());
-    scroll->setScrollBarPolicy(WScrollArea::ScrollBarAsNeeded);
+    
+    scroll->addWidget(std::move(cw));
+    
     sr_cw_->setHidden(false);
-    sr_cw_->setContentAlignment(AlignRight);
-    sr_cw_->addWidget(scroll);
+    sr_cw_->setContentAlignment(Wt::AlignmentFlag::Right);
+    sr_cw_->addWidget(std::move(scroll));
+    
     if (smp_) {
         smp_ = false;
         smp_calc(ns);
@@ -868,12 +884,12 @@ void MapViewer::ch_markers_size(int num) {
         h = 13;
     }
     for (unsigned i = 0; i < marker_nodes_.size(); i++) {
-        wApp->styleSheet().addRule("#mvMarker" + TO_S(i),
-                                   "width:" + TO_S(w) + "px;"
-                                   "height:" + TO_S(h) + "px;");
+        wApp->styleSheet().addRule("#mvMarker" + std::to_string(i),
+                                   "width:" + std::to_string(w) + "px;"
+                                   "height:" + std::to_string(h) + "px;");
     }
     if (num != -1) {
-        wApp->styleSheet().addRule("#mvMarker" + TO_S(num),
+        wApp->styleSheet().addRule("#mvMarker" + std::to_string(num),
                                    "width:21px;"
                                    "height:25px;");
     }
@@ -910,8 +926,8 @@ void MapViewer::smp_calc(const MapViewer::GeoNodes& ns) {
     double dl = 1.01;
     double wl = get_abs(rect.width() * dl);
     double hl = get_abs(rect.height() * dl);
-    int xn = round(std::log(360.0 * xts / wl) / std::log(2));
-    int yn = round(std::log(180.0 * yts / hl) / std::log(2));
+    int xn = std::round(std::log(360.0 * xts / wl) / std::log(2));
+    int yn = std::round(std::log(180.0 * yts / hl) / std::log(2));
     int n = 1;
     if (xn >= yn) {
         n = yn;
@@ -940,7 +956,7 @@ WRectF MapViewer::tauten(const MapViewer::GeoNodes& ns) {
     }
     WPointF& lt_ = lt;
     WPointF& rb_ = rb;
-    BOOST_FOREACH (const GeoNode& n, ns) {
+    for (const auto& n : ns) {
         double lng = n.first.longitude();
         double lat = n.first.latitude();
         if (lt_.x() > lng) {
@@ -963,7 +979,7 @@ void MapViewer::add_markers(const MapViewer::GeoNodes& ns) {
     destroy_markers();
     if (js()) {
         std::stringstream strm;
-        BOOST_FOREACH (const GeoNode& n, ns) {
+        for (const auto& n : ns) {
             strm << adding_marker_jsc(n.first);
         }
         doJavaScript(strm.str());
@@ -1008,10 +1024,10 @@ void MapViewer::destroy_markers() {
 
 const WPoint MapViewer::w2t(const Coordinate& pos, int zoom) const {
     // World to tile position.
-    int x = (int)(floor((pos.longitude() + 180.0) /
+    int x = (int)(std::floor((pos.longitude() + 180.0) /
                         360.0 * std::pow(2.0, zoom)));
-    double lat_rad = pos.latitude() *  pi / 180.0;
-    int y = (int)(floor((1.0 - std::log(std::tan(lat_rad) + 1.0 /
+    double lat_rad = pos.latitude() * pi / 180.0;
+    int y = (int)(std::floor((1.0 - std::log(std::tan(lat_rad) + 1.0 /
                                         std::cos(lat_rad)) / pi) /
                         2.0 * std::pow(2.0, zoom)));
     return WPoint(x, y);
@@ -1022,7 +1038,7 @@ const MapViewer::Coordinate MapViewer::t2w(const WPoint& pos,
     // Tile to World position.
     double lng = pos.x() / std::pow(2.0, zoom) * 360.0 - 180;
     double n = pi - 2.0 * pi * pos.y() / std::pow(2.0, zoom);
-    double lat = 180.0 / pi * atan(0.5 * (exp(n) - exp(-n)));
+    double lat = 180.0 / pi * std::atan(0.5 * (std::exp(n) - std::exp(-n)));
     lng = coord_control(lng);
     lat = coord_control(lat, "lat");
     return MapViewer::Coordinate(lat, lng);
@@ -1035,8 +1051,8 @@ const WPoint MapViewer::w2px(const Coordinate& pos) const {
                                    pos.longitude());
     double lat_diff = diff_between(m_coords.first.latitude(),
                                    pos.latitude());
-    return WPoint(round(lng_diff * to_px_.first),
-                  round(lat_diff * to_px_.second));
+    return WPoint(std::round(lng_diff * to_px_.first),
+                  std::round(lat_diff * to_px_.second));
 }
 
 void MapViewer::map_param_calc() {
@@ -1055,10 +1071,10 @@ void MapViewer::map_param_calc() {
     rb_lng = coord_control(rb_lng);
     marginal_map_coords_ = std::make_pair(Coordinate(lt_lat, lt_lng),
                                           Coordinate(rb_lat, rb_lng));
-    int left = (int)(round(diff_between(pos_.first.longitude(),
+    int left = (int)(std::round(diff_between(pos_.first.longitude(),
                                         marginal_tile_coords_.first.longitude())
                            / tl_size.first * 256.0));
-    int top = (int)(round(diff_between(pos_.first.latitude(),
+    int top = (int)(std::round(diff_between(pos_.first.latitude(),
                                        marginal_tile_coords_.first.latitude())
                           / tl_size.second * 256.0));
     tile_lt_ = std::make_pair(left, top);
@@ -1118,7 +1134,7 @@ std::string MapViewer::set_js_listener_control_(
          << "var lonlat = map.getLonLatFromViewPortPx(e.xy)"
          << ".transform(map.getProjectionObject(), "
          "new OpenLayers.Projection('EPSG:4326'));"
-         << signal.createCall("lonlat.lat +' ' + lonlat.lon")
+         << signal.createCall({"lonlat.lat +' ' + lonlat.lon"}) // Wt4 requires initializer list
          << ";}});";
     return strm.str();
 }
@@ -1134,11 +1150,11 @@ void MapViewer::set_click_signal_() {
 }
 
 void MapViewer::click_on(const Coordinate& pos) {
-    clicked_.emit(Coordinate(pos.latitude(), pos.longitude()));
+    clicked_.emit(pos);
 }
 
 void MapViewer::click_on(const WPoint& tile_xy,
-                         const WMouseEvent::Coordinates& img_xy) {
+                         const Wt::Coordinates& img_xy) {
     std::pair<double, double> tsize = tile_size();
     Coordinate lt_coord = t2w(tile_xy, zoom_);
     double lng = lt_coord.longitude() + img_xy.x / 256.0 * tsize.first;
@@ -1174,26 +1190,26 @@ const std::string MapViewer::get_lonlat_jsc(const std::string& lat,
 
 const std::string
 MapViewer::get_lonlat_jsc(const Coordinate& pos) const {
-    std::string lon = TO_S(pos.longitude());
-    std::string lat = TO_S(pos.latitude());
+    std::string lon = std::to_string(pos.longitude());
+    std::string lat = std::to_string(pos.latitude());
     return get_lonlat_jsc(lat, lon);
 }
 
-Side MapViewer::get_side(int v) const {
+Wt::Side MapViewer::get_side(int v) const {
     if (v == 0) {
-        return Left;
+        return Wt::Side::Left;
     } else if (v == 1) {
-        return Bottom;
+        return Wt::Side::Bottom;
     } else if (v == 2) {
-        return Right;
+        return Wt::Side::Right;
     } else if (v == 3) {
-        return Top;
+        return Wt::Side::Top;
     }
-    return Left;
+    return Wt::Side::Left;
 }
 
 Wt::WContainerWidget* MapViewer::get_impl() {
-    return DOWNCAST<Wt::WContainerWidget*>(implementation());
+    return dynamic_cast<Wt::WContainerWidget*>(implementation().get());
 }
 
 template <class Type>
@@ -1221,7 +1237,7 @@ double MapViewer::mod(double x, double y) const {
         sign = true;
         div *= -1;
     }
-    double rest = div - floor(div);
+    double rest = div - std::floor(div);
     if (sign) {
         rest *= -1;
     }
@@ -1270,19 +1286,17 @@ std::pair<double, double> MapViewer::tile_size() {
     return std::make_pair(wp, lp);
 }
 
-Signal<MapViewer::TZ>& MapViewer::time_zone(const Coordinate& pos, bool ajax) {
+Wt::Signal<MapViewer::TZ>& MapViewer::time_zone(const Coordinate& pos, bool ajax) {
     if (!tz_signal_) {
-        tz_signal_ = new Signal<TZ>();
+        tz_signal_ = std::make_unique<Wt::Signal<TZ>>();
     }
-    std::string url = tzurl + "lat=" + TO_S(pos.latitude())
-                      + "&lng=" + TO_S(pos.longitude());
+    std::string url = tzurl + "lat=" + std::to_string(pos.latitude())
+                      + "&lng=" + std::to_string(pos.longitude());
     if (js() && ajax) {
         if (!jtz_signal_) {
-            jtz_signal_ = new JSignal<std::string>(this, "tz");
+            jtz_signal_ = std::make_unique<Wt::JSignal<std::string>>(this, "tz");
         }
-        typedef void (MapViewer::*M)(const std::string&);
-        M tz_data_parser = &MapViewer::tz_data_parser;
-        jtz_signal_->connect(boost::bind(tz_data_parser, this, _1));
+        jtz_signal_->connect([this](const std::string& str) { this->tz_data_parser(str); });
         std::stringstream strm;
         strm << "jQuery.ajax({"
              << "url:'" << url << "',"
@@ -1293,13 +1307,13 @@ Signal<MapViewer::TZ>& MapViewer::time_zone(const Coordinate& pos, bool ajax) {
              << "var tdiff=data.gmtOffset - data.dstOffset;"
              << "if(tdiff==1||tdiff==-1){is_st=1;}"
              << "tz_data+=is_st;}"
-             << jtz_signal_->createCall("tz_data")
+             << jtz_signal_->createCall({"tz_data"}) // Wt4 requires initializer list
              << "}});";
         doJavaScript(strm.str());
     } else {
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
-        tz_http_ = new Http::Client(this);
-        tz_http_->done().connect(this, &MapViewer::tz_data_parser);
+        tz_http_ = new Wt::Http::Client(this);
+        tz_http_->done().connect([this](std::error_code err, const Wt::Http::Message& msg) { this->tz_data_parser(err, msg); });
         if (tz_http_->get(url)) {
         }
 #endif
@@ -1311,10 +1325,9 @@ void MapViewer::tz_data_parser(const std::string& data) {
     int tz;
     bool is_st;
     if (data != "") {
-        std::vector<std::string> v;
-        boost::split(v, data, boost::is_any_of(" "));
-        tz = boost::lexical_cast<int>(v[0]);
-        is_st = boost::lexical_cast<int>(v[1]) ? true : false;
+        auto space_pos = data.find(' ');
+        tz = std::stoi(data.substr(0, space_pos));
+        is_st = std::stoi(data.substr(space_pos + 1)) ? true : false;
     } else {
         tz = -13;
         is_st = false;
@@ -1324,20 +1337,20 @@ void MapViewer::tz_data_parser(const std::string& data) {
 }
 
 #if defined(WC_HAVE_WHTTP_MESSAGE) && defined(WC_HAVE_JSON_OBJECT)
-void MapViewer::tz_data_parser(const boost::system::error_code& e,
-                               const Http::Message& response) {
+void MapViewer::tz_data_parser(std::error_code e,
+                               const Wt::Http::Message& response) {
     TZ tz;
     if (!e) {
-        Json::Value val;
+        Wt::Json::Value val;
         try {
-            Json::parse(cipher(response.body()), val);
+            Wt::Json::parse(cipher(response.body()), val);
         } catch (...) {
             tz = TZ(-13, false);
             tz_signal_->emit(tz);
             return;
         }
         try {
-            const Json::Object obj = val;
+            const Wt::Json::Object obj = val;
             int gmt_off_set = 0;
             int dst_off_set = 0;
             try {
@@ -1371,7 +1384,5 @@ void MapViewer::tz_data_parser(const boost::system::error_code& e,
 }
 #endif
 
-}
-
-}
+}   // namespace Wt::Wc
 

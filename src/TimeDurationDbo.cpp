@@ -5,10 +5,10 @@
  * See the LICENSE file for terms of use.
  */
 
-#include <Wt/WDateTime>
-#include <Wt/Dbo/SqlConnection>
-#include <Wt/Dbo/SqlStatement>
-#include <Wt/Dbo/WtSqlTraits>
+#include <Wt/WDateTime.h>
+#include <Wt/Dbo/SqlConnection.h>
+#include <Wt/Dbo/SqlStatement.h>
+#include <Wt/Dbo/WtSqlTraits.h>
 
 #include "TimeDurationDbo.hpp"
 
@@ -39,4 +39,3 @@ bool sql_value_traits<Wc::td::TimeDuration>::read(Wc::td::TimeDuration& v,
 }
 
 }
-

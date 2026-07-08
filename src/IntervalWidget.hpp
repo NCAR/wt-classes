@@ -8,8 +8,8 @@
 #ifndef WC_INTERVAL_WIDGET_HPP_
 #define WC_INTERVAL_WIDGET_HPP_
 
-#include <Wt/WGlobal>
-#include <Wt/WTemplate>
+#include <Wt/WGlobal.h>
+#include <Wt/WTemplate.h>
 
 namespace Wt {
 
@@ -28,8 +28,7 @@ public:
     /** Constructor.
     Two widgets passed are used as beginning and end of the interval.
     */
-    IntervalWidget(WWidget* min, WWidget* max,
-                   WContainerWidget* parent = 0);
+    IntervalWidget(std::unique_ptr<WWidget> min, std::unique_ptr<WWidget> max);
 };
 
 }
@@ -37,4 +36,3 @@ public:
 }
 
 #endif
-
