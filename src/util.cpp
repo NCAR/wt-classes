@@ -172,7 +172,7 @@ struct OneAnyFuncHolder {
     std::shared_ptr<OneData> arg_ptr;
 };
 
-static OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge) {
+OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge) {
     OneAnyFuncBinder binder;
     OneAnyFuncHolder holder;
     binder.func = func;

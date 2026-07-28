@@ -101,7 +101,7 @@ This function is like bound_post(), but it allows to bind one argument.
 
 \ingroup util
 */
-static OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge = true);
+OneAnyFunc one_bound_post(const OneAnyFunc& func, bool allow_merge = true);
 
 /** Call triggerUpdate() in current WApplication, if updates are enabled.
 
