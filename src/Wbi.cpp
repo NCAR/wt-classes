@@ -91,6 +91,12 @@ AbstractInput::AbstractInput(const std::string& option_name):
     AbstractArgument(option_name), required_(true)
 { }
 
+void AbstractInput::add_args_impl(const ArgUser& f) const {
+    if (state() == VALID) {
+        add_option(f);
+    }
+}
+
 WFormWidget* AbstractInput::form_widget() {
     return form_widget_impl();
 }
