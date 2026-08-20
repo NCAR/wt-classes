@@ -53,7 +53,7 @@ namespace Wt::Wc::notify {
 
     static void thread_func(std::function<void()> func, WApplication* app,
                             BoolPtr b) {
-        schedule_action(td::TimeDuration::zero(), [func, app, b]() { do_func(func, app, b); });
+        schedule_action(td::TD_NULL, [func, app, b]() { do_func(func, app, b); });
     }
 #endif
 struct OneData {

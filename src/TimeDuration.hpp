@@ -32,20 +32,7 @@ Wt::Dbo::sql_value_traits< Wc::td::TimeDuration, void >.
 class TimeDuration : public std::chrono::duration<double, std::chrono::seconds::period>{
 
 public:
-	// Explicitly inherit all constructors from our base duration class. Most
-    // importantly, this gives us the TimeDuration(double seconds = 0.0) constructor.
 	using std::chrono::duration<double, std::chrono::seconds::period>::duration;
-
-    // Return a TimeDuration of zero seconds.
-    static constexpr TimeDuration zero() { return TimeDuration(0.0); };
-
-    /**  Copy construction from TimeDuration */
-    TimeDuration(const TimeDuration& other) = default;
-
-    /**  Copy construction from duration<double, std::chrono::seconds::period> */
-    TimeDuration(const std::chrono::duration<double, std::chrono::seconds::period>& other) {
-        *this = other;
-    }
 
     /** Convert to string */
     operator std::string() const;
@@ -125,25 +112,25 @@ const TimeDuration SECOND(1);
 
 \ingroup time
 */
-const TimeDuration MINUTE(60.0 * SECOND);
+const TimeDuration MINUTE(60 * SECOND.count());
 
 /** One hour.
 
 \ingroup time
 */
-const TimeDuration HOUR(60.0 * MINUTE);
+const TimeDuration HOUR(60 * MINUTE.count());
 
 /** One day.
 
 \ingroup time
 */
-const TimeDuration DAY(24.0 * HOUR);
+const TimeDuration DAY(24.0 * HOUR.count());
 
 /** One week.
 
 \ingroup time
 */
-const TimeDuration WEEK(7.0 * DAY);
+const TimeDuration WEEK(7.0 * DAY.count());
 
 
 }   // namespace Wt::Wc::td

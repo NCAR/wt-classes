@@ -81,11 +81,11 @@ TimeDuration rand_range(const TimeDuration& start, const TimeDuration& stop) {
 }
 
 TimeDuration operator *(const TimeDuration& a, const double& b) {
-	return b * a;
+	return TimeDuration(a.count() * b);
 };
 
 TimeDuration operator *(const TimeDuration& a, const long& b) {
-	return b * a;
+	return TimeDuration(a.count() * b);
 };
 
 }   // namespace Wt::Wc::td

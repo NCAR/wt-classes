@@ -63,7 +63,7 @@ public:
     }
 
     TimeDuration value() const {
-        return raw_value() * INTERVALS[combo_box_->currentIndex()];
+        return TimeDuration(raw_value() * INTERVALS[combo_box_->currentIndex()].count());
     }
 
     TimeDuration corrected_value() const {
@@ -100,7 +100,7 @@ private:
     TimeDuration unit_;
 
     void select_handler_(int i) {
-        TimeDuration s = raw_value() * unit_;
+        TimeDuration s(raw_value() * unit_.count());
         unit_ = INTERVALS[i];
         set_raw_value(min_ / unit_, s / unit_, max_ / unit_);
     }

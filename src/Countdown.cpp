@@ -64,7 +64,7 @@ private:
 
 Countdown::Countdown(bool load_javascript):
     WContainerWidget(),
-    unit_(SECOND / 10),
+    unit_(0.1), // seconds
     now_(now()),
     view_(0),
     expired_(0) {
@@ -154,7 +154,7 @@ void Countdown::change(const std::string& name, const std::string& value,
 
 const char PERIOD_LETTERS[] = "YOWDHMS";
 const TimeDuration PERIOD_DURATIONS[] = {
-    365 * DAY, 30 * DAY, WEEK, DAY, HOUR, MINUTE, SECOND
+    TimeDuration(365 * DAY.count()), TimeDuration(30 * DAY.count()), WEEK, DAY, HOUR, MINUTE, SECOND
 };
 
 const int PERIOD_LENGTH = 7;

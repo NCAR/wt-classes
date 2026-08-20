@@ -63,7 +63,7 @@ typedef std::map<std::string, WDateTime> Map;
 Map ip2last;
 int calls = 0;
 const int FILTER_EVERY = 1000;
-const td::TimeDuration CHECK_INTERVAL(3 * td::SECOND);
+const td::TimeDuration CHECK_INTERVAL(3.0); // seconds
 
 }
 
